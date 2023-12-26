@@ -1,6 +1,6 @@
 import {Handler, SQSEvent} from "aws-lambda";
 import OpenAI from "openai";
-import {SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
+import {DeleteMessageCommand, SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
 import {Redis} from "@upstash/redis";
 import {functionHandlerMap, TelegramFunctions} from "./tools/telegram";
 // @ts-ignore
@@ -17,7 +17,7 @@ const openai = new OpenAI();
 export const handler: Handler = async (event: SQSEvent, context) => {
   const records = event.Records;
   for (const record of records) {
-    const {messageAttributes, body} = record;
+    const {messageAttributes, body, receiptHandle} = record;
     const intent = messageAttributes?.intent?.stringValue || undefined;
     const from = messageAttributes?.from?.stringValue || undefined;
 
@@ -25,7 +25,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
     if (intent === 'threads.runs.create') {
       if (from === "telegram") {
         const {thread_id, assistant_id} = JSON.parse(body);
-        const {id} = await openai.beta.threads.runs.create(thread_id, {
+        const {id: run_id} = await openai.beta.threads.runs.create(thread_id, {
           assistant_id,
           additional_instructions: 'You are a telegram bot now. You will receive a update from telegram API. Then, you should send message to target chat.',
           tools: TelegramFunctions,
@@ -35,7 +35,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
           MessageBody: JSON.stringify({
             thread_id,
-            run_id: id,
+            run_id,
             assistant_id,
           }),
           MessageAttributes: {
@@ -44,7 +44,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               StringValue: 'threads.runs.retrieve'
             },
           },
-          MessageDeduplicationId: `${thread_id}-${id}`,
+          MessageDeduplicationId: `${assistant_id}-${thread_id}-${run_id}`,
         }))
       }
     } else if (intent === 'threads.runs.retrieve') {
@@ -52,60 +52,80 @@ export const handler: Handler = async (event: SQSEvent, context) => {
       const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id)
       console.log(thread_id, run_id, status);
       switch (status) {
+        // When Runs are first created or when you complete the required_action, they are moved to a queued status.
+        // They should almost immediately move to in_progress.
         case "queued":
-          // When Runs are first created or when you complete the required_action, they are moved to a queued status.
-          // They should almost immediately move to in_progress.
+        // While in_progress, the Assistant uses the model and tools to perform steps.
+        // You can view progress being made by the Run by examining the Run Steps.
+        case "in_progress":
+          await sqsClient.send(new SendMessageCommand({
+            QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+            MessageBody: JSON.stringify({
+              thread_id,
+              run_id,
+              assistant_id,
+            }),
+            MessageAttributes: {
+              intent: {
+                DataType: 'String',
+                StringValue: 'threads.runs.retrieve'
+              },
+            },
+            MessageDeduplicationId: `${assistant_id}-${thread_id}-${run_id}`,
+          }))
           break;
+        // When using the Function calling tool, the Run will move to a required_action state once the model
+        // determines the names and arguments of the functions to be called.
+        // You must then run those functions and submit the outputs before the run proceeds.
+        // If the outputs are not provided before the expires_at timestamp passes (roughly 10 mins past creation),
+        // the run will move to an expired status.
         case "requires_action":
-          // When using the Function calling tool, the Run will move to a required_action state once the model
-          // determines the names and arguments of the functions to be called.
-          // You must then run those functions and submit the outputs before the run proceeds.
-          // If the outputs are not provided before the expires_at timestamp passes (roughly 10 mins past creation),
-          // the run will move to an expired status.
           if (!required_action) {
             break;
           }
           const tool_calls = required_action.submit_tool_outputs.tool_calls;
-          let tool_outputs: Array<RunSubmitToolOutputsParams.ToolOutput> = [];
+          if (tool_calls.length === 0) {
+            break;
+          }
+          let tool_outputs_promises = [];
           for (const toolCall of tool_calls) {
             const function_name = toolCall.function.name;
             const handler = functionHandlerMap[function_name!];
-            if (!handler) {
-              continue;
+            if (handler) {
+              // Instead of awaiting each handler, push the promise into an array
+              tool_outputs_promises.push(handler(toolCall, assistant_id));
             }
-            const tooOutPut = await handler(toolCall, assistant_id);
-            tool_outputs.push(tooOutPut);
           }
-          if (tool_outputs.length > 0) {
-            await openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
+          Promise.all(tool_outputs_promises).then((tool_outputs: Array<RunSubmitToolOutputsParams.ToolOutput>) => {
+            openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
               tool_outputs,
-            })
-          } else {
-            console.log("No tool outputs provided");
-          }
+            });
+          }).catch(error => {
+            // Handle errors for any of the promises
+            console.error("Error while processing tool outputs:", error);
+          });
           break;
+        // You can attempt to cancel an in_progress run using the Cancel Run endpoint.
+        // Once the attempt to cancel succeeds, status of the Run moves to cancelled.
+        // Cancellation is attempted but not guaranteed.
         case "cancelling":
-          // You can attempt to cancel an in_progress run using the Cancel Run endpoint.
-          // Once the attempt to cancel succeeds, status of the Run moves to cancelled.
-          // Cancellation is attempted but not guaranteed.
-          break;
-        case "in_progress":
-          // While in_progress, the Assistant uses the model and tools to perform steps.
-          // You can view progress being made by the Run by examining the Run Steps.
-          break;
+        // The Run successfully completed! You can now view all Messages the Assistant added to the Thread, and all the steps the Run took.
+        // You can also continue the conversation by adding more user Messages to the Thread and creating another Run.
         case "completed":
-        // The Run successfully completed! You can now view all Messages the Assistant added to the Thread,
-        //  and all the steps the Run took.
-        //  You can also continue the conversation by adding more user Messages to the Thread and creating another Run.
-        case "failed":
         // You can view the reason for the failure by looking at the last_error object in the Run.
         // The timestamp for the failure will be recorded under failed_at.
-        case "cancelled":
+        case "failed":
         // Run was successfully cancelled.
+        case "cancelled":
+        // This happens when the function calling outputs were not submitted before expires_at and the run expires.
+        // Additionally, if the runs take too long to execute and go beyond the time stated in expires_at,
+        // our systems will expire the run.
         case "expired":
-          // This happens when the function calling outputs were not submitted before expires_at and the run expires.
-          // Additionally, if the runs take too long to execute and go beyond the time stated in expires_at,
-          // our systems will expire the run.
+          // Delete the SQS message
+          await sqsClient.send(new DeleteMessageCommand({
+            QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+            ReceiptHandle: receiptHandle,
+          }))
           break;
         default:
           break;
