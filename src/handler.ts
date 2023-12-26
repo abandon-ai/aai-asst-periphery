@@ -68,6 +68,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           // While in_progress, the Assistant uses the model and tools to perform steps.
           // You can view progress being made by the Run by examining the Run Steps.
           case "in_progress":
+            console.log("Change message visibility to 10 seconds");
             await sqsClient.send(new ChangeMessageVisibilityCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
@@ -81,20 +82,29 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           // the run will move to an expired status.
           case "requires_action":
             if (!required_action) {
+              console.log("Required action not found");
               break;
             }
             const tool_calls = required_action.submit_tool_outputs.tool_calls;
             if (tool_calls.length === 0) {
+              console.log("No tool calls found");
               break;
             }
             let tool_outputs_promises = [];
             for (const toolCall of tool_calls) {
               const function_name = toolCall.function.name;
+              console.log("function_name", function_name);
               const handler = functionHandlerMap[function_name!];
               if (handler) {
                 // Instead of awaiting each handler, push the promise into an array
                 tool_outputs_promises.push(handler(toolCall, assistant_id));
+              } else {
+                console.log(`Function ${function_name} not found`);
               }
+            }
+            if (tool_outputs_promises.length === 0) {
+              console.log("No tool outputs found");
+              break;
             }
             Promise.all(tool_outputs_promises).then((tool_outputs: Array<RunSubmitToolOutputsParams.ToolOutput>) => {
               openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
@@ -104,6 +114,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               // Handle errors for any of the promises
               console.error("Error while processing tool outputs:", error);
             });
+            console.log("Deleted message");
             await sqsClient.send(new DeleteMessageCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
@@ -126,6 +137,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           // our systems will expire the run.
           case "expired":
             // Delete the SQS message
+            console.log("Deleted message");
             await sqsClient.send(new DeleteMessageCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
