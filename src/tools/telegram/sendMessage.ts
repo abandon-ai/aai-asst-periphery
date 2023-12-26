@@ -81,7 +81,10 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
     if (!telegram) {
       return {
         tool_call_id: toolCall.id,
-        output: 'This assistant is not configured to use Telegram.',
+        output: JSON.stringify({
+          success: false,
+          msg: 'This assistant is not configured to use Telegram.'
+        }),
       }
     }
     try {
@@ -101,19 +104,27 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
       }).then((res) => res.json());
       return {
         tool_call_id: toolCall.id,
-        output: functionResponse,
+        output: JSON.stringify({
+          success: true,
+        }),
       }
     } catch (e) {
       console.error(e);
       return {
         tool_call_id: toolCall.id,
-        output: `Failed to send message.`,
+        output: JSON.stringify({
+          success: false,
+          msg: 'Failed to send message.'
+        }),
       }
     }
   } else {
     return {
       tool_call_id: toolCall.id,
-      output: `No arguments provided.`,
+      output: JSON.stringify({
+        success: false,
+        msg: 'No arguments provided.'
+      }),
     }
   }
 }
