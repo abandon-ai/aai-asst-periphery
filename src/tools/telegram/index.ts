@@ -1,5 +1,4 @@
 import {sendMessage, sendMessageHandler} from "./sendMessage";
-import {sendChatAction, sendChatActionHandler} from "./sendChatAction";
 // @ts-ignore
 import {RunCreateParams, Runs, RunSubmitToolOutputsParams} from "openai/resources/beta/threads";
 
