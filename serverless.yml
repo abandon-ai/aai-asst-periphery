@@ -24,13 +24,14 @@ plugins:
   - "serverless-dotenv-plugin"
 
 functions:
-  dbWriterFifoHandler:
-    handler: "src/dbWriterFifo.handler"
-    timeout: 10
+  handler:
+    name: "abandonai-asst-thread-handler"
+    handler: "src/handler.handler"
+    timeout: 30
     memorySize: 256
     architecture: arm64
     reservedConcurrency: 5
     events:
       - sqs:
           arn: ${env:AI_ASST_SQS_FIFO_ARN}
-          batchSize: 10
+          batchSize: 5
