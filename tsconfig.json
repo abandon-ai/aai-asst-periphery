@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "module": "NodeNext",
+    "target": "es2021"
+  },
+  "include": [
+    "src/**/*"
+  ]
+}

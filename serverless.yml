@@ -1,0 +1,36 @@
+service: abandonai-asst-periphery
+frameworkVersion: '3'
+useDotenv: true
+
+package:
+  patterns:
+    - "src/**"
+  individually: true
+  excludeDevDependencies: true
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  deploymentMethod: "direct"
+  region: "ap-northeast-1"
+  iam:
+    role:
+      managedPolicies:
+        - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
+
+plugins:
+  - "serverless-plugin-typescript"
+  - "serverless-dotenv-plugin"
+
+functions:
+  dbWriterFifoHandler:
+    handler: "src/dbWriterFifo.handler"
+    timeout: 10
+    memorySize: 256
+    architecture: arm64
+    reservedConcurrency: 5
+    events:
+      - sqs:
+          arn: ${env:AI_ASST_SQS_FIFO_ARN}
+          batchSize: 10
