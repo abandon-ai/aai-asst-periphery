@@ -50,12 +50,12 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           }))
         } catch (e) {
           console.log("Failed to create run", e);
-          await sqsClient.send(new DeleteMessageCommand({
-            QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-            ReceiptHandle: receiptHandle,
-          }))
         }
       }
+      await sqsClient.send(new DeleteMessageCommand({
+        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+        ReceiptHandle: receiptHandle,
+      }))
     } else if (intent === 'threads.runs.retrieve') {
       const {thread_id, run_id, assistant_id} = JSON.parse(body);
       try {
