@@ -114,11 +114,6 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               // Handle errors for any of the promises
               console.error("Error while processing tool outputs:", error);
             });
-            console.log("Deleted message");
-            await sqsClient.send(new DeleteMessageCommand({
-              QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-              ReceiptHandle: receiptHandle,
-            }))
             break;
           // You can attempt to cancel an in_progress run using the Cancel Run endpoint.
           // Once the attempt to cancel succeeds, status of the Run moves to cancelled.
