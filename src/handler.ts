@@ -44,6 +44,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               StringValue: 'threads.runs.retrieve'
             },
           },
+          MessageGroupId: `${assistant_id}-${thread_id}`,
           MessageDeduplicationId: `${assistant_id}-${thread_id}-${run_id}`,
         }))
       }
