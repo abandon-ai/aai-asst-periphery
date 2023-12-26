@@ -1,6 +1,6 @@
 import {Handler, SQSEvent} from "aws-lambda";
 import OpenAI from "openai";
-import {DeleteMessageCommand, SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
+import {ChangeMessageVisibilityCommand, DeleteMessageCommand, SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
 import {Redis} from "@upstash/redis";
 import {functionHandlerMap, TelegramFunctions} from "./tools/telegram";
 // @ts-ignore
@@ -58,20 +58,10 @@ export const handler: Handler = async (event: SQSEvent, context) => {
         // While in_progress, the Assistant uses the model and tools to perform steps.
         // You can view progress being made by the Run by examining the Run Steps.
         case "in_progress":
-          await sqsClient.send(new SendMessageCommand({
+          await sqsClient.send(new ChangeMessageVisibilityCommand({
             QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-            MessageBody: JSON.stringify({
-              thread_id,
-              run_id,
-              assistant_id,
-            }),
-            MessageAttributes: {
-              intent: {
-                DataType: 'String',
-                StringValue: 'threads.runs.retrieve'
-              },
-            },
-            MessageDeduplicationId: `${assistant_id}-${thread_id}-${run_id}`,
+            ReceiptHandle: receiptHandle,
+            VisibilityTimeout: 10,
           }))
           break;
         // When using the Function calling tool, the Run will move to a required_action state once the model
@@ -104,6 +94,10 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             // Handle errors for any of the promises
             console.error("Error while processing tool outputs:", error);
           });
+          await sqsClient.send(new DeleteMessageCommand({
+            QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+            ReceiptHandle: receiptHandle,
+          }))
           break;
         // You can attempt to cancel an in_progress run using the Cancel Run endpoint.
         // Once the attempt to cancel succeeds, status of the Run moves to cancelled.
