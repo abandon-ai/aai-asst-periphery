@@ -5,12 +5,10 @@ import {RunCreateParams, Runs, RunSubmitToolOutputsParams} from "openai/resource
 
 export const TelegramFunctions: Array<RunCreateParams.AssistantToolsFunction> = [
   sendMessage,
-  sendChatAction,
 ]
 
 export const functionHandlerMap: {
   [key: string]: (toolCall: Runs.RequiredActionFunctionToolCall, assistant: string) => Promise<RunSubmitToolOutputsParams.ToolOutput>
 } = {
   sendMessage: sendMessageHandler,
-  sendChatAction: sendChatActionHandler,
 }
