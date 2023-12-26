@@ -88,7 +88,8 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
       }
     }
     try {
-      await fetch(`https://api.telegram.org/bot${telegram}/sendMessage`, {
+      console.log('Prepare sendMessage', chat_id, text);
+      const res = await fetch(`https://api.telegram.org/bot${telegram}/sendMessage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -101,11 +102,13 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
           reply_to_message_id,
           reply_markup,
         })
-      });
+      }).then((res) => res.json());
+      console.log(res);
       return {
         tool_call_id: toolCall.id,
         output: JSON.stringify({
           success: true,
+          msg: res,
         }),
       }
     } catch (e) {
