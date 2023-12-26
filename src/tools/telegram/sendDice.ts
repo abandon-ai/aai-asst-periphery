@@ -1,5 +1,6 @@
 // @ts-ignore
-import {Runs, RunCreateParams} from "openai/resources/beta/threads";
+import {Runs, RunCreateParams, RunSubmitToolOutputsParams} from "openai/resources/beta/threads";
+import {redisClient} from "../../handler";
 
 export const sendDice: RunCreateParams.AssistantToolsFunction = {
   type: 'function',
@@ -50,6 +51,57 @@ export const sendDice: RunCreateParams.AssistantToolsFunction = {
         }
       },
       required: ["chat_id"],
+    }
+  }
+}
+
+export const sendDiceHandler: (toolCall: Runs.RequiredActionFunctionToolCall, assistant_id: string) => Promise<RunSubmitToolOutputsParams.ToolOutput> = async (toolCall, assistant) => {
+  if (toolCall.function.arguments) {
+    const {
+      user_id,
+      offset,
+      limit,
+      reply_to_message_id,
+      reply_markup
+    } = JSON.parse(toolCall.function.arguments);
+    const asst_info = await redisClient.get(`ASST#${assistant}`);
+    // @ts-ignore
+    const telegram = asst_info?.metadata?.telegram || undefined;
+    if (!telegram) {
+      return {
+        tool_call_id: toolCall.id,
+        output: 'This assistant is not configured to use Telegram.',
+      }
+    }
+    try {
+      const functionResponse = await fetch(`https://api.telegram.org/bot${telegram}/sendDice`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id,
+          offset,
+          limit,
+          reply_to_message_id,
+          reply_markup
+        })
+      }).then((res) => res.json());
+      return {
+        tool_call_id: toolCall.id,
+        output: functionResponse,
+      }
+    } catch (e) {
+      console.error(e);
+      return {
+        tool_call_id: toolCall.id,
+        output: `Failed to send dice`,
+      }
+    }
+  } else {
+    return {
+      tool_call_id: toolCall.id,
+      output: `No arguments provided.`,
     }
   }
 }

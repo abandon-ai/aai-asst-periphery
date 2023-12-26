@@ -1,5 +1,5 @@
 // @ts-ignore
-import {Runs, RunCreateParams} from "openai/resources/beta/threads";
+import {RunCreateParams} from "openai/resources/beta/threads";
 
 export const sendPhoto: RunCreateParams.AssistantToolsFunction = {
   type: 'function',
