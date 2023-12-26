@@ -88,7 +88,7 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
       }
     }
     try {
-      const functionResponse = await fetch(`https://api.telegram.org/bot${telegram}/sendMessage`, {
+      await fetch(`https://api.telegram.org/bot${telegram}/sendMessage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -101,7 +101,7 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
           reply_to_message_id,
           reply_markup,
         })
-      }).then((res) => res.json());
+      });
       return {
         tool_call_id: toolCall.id,
         output: JSON.stringify({
