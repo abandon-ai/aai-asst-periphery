@@ -34,7 +34,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
 
     if (intent === 'threads.runs.create') {
       if (from === "telegram") {
-        const {thread_id, assistant_id, update_id} = JSON.parse(body);
+        const {thread_id, assistant_id, update_id, token, chat_id} = JSON.parse(body);
         console.log("threads.runs.create")
         console.log(assistant_id);
         console.log(thread_id);
@@ -51,6 +51,8 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               run_id,
               assistant_id,
               update_id,
+              token,
+              chat_id,
             }),
             MessageAttributes: {
               intent: {
@@ -91,7 +93,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
         console.log("Not from telegram");
       }
     } else if (intent === 'threads.runs.retrieve') {
-      const {thread_id, run_id, assistant_id} = JSON.parse(body);
+      const {thread_id, run_id, assistant_id, token, chat_id} = JSON.parse(body);
       console.log("threads.runs.retrieve");
       console.log(assistant_id);
       console.log(thread_id);
@@ -102,6 +104,16 @@ export const handler: Handler = async (event: SQSEvent, context) => {
         switch (status) {
           case "queued":
           case "in_progress":
+            await fetch(`https://api.telegram.org/bot${token}/sendChatAction`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                chat_id,
+                action: "typing",
+              })
+            })
             await sqsClient.send(new ChangeMessageVisibilityCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
