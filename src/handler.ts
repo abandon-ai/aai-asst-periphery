@@ -65,11 +65,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
         const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
         console.log(thread_id, run_id, status);
         switch (status) {
-          // When Runs are first created or when you complete the required_action, they are moved to a queued status.
-          // They should almost immediately move to in_progress.
           case "queued":
-          // While in_progress, the Assistant uses the model and tools to perform steps.
-          // You can view progress being made by the Run by examining the Run Steps.
           case "in_progress":
             console.log("Change message visibility to 10 seconds");
             await sqsClient.send(new ChangeMessageVisibilityCommand({
@@ -78,11 +74,6 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               VisibilityTimeout: 10,
             }))
             break;
-          // When using the Function calling tool, the Run will move to a required_action state once the model
-          // determines the names and arguments of the functions to be called.
-          // You must then run those functions and submit the outputs before the run proceeds.
-          // If the outputs are not provided before the expires_at timestamp passes (roughly 10 mins past creation),
-          // the run will move to an expired status.
           case "requires_action":
             if (!required_action) {
               console.log("Required action not found");
@@ -120,24 +111,12 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               console.log("Failed to submit tool outputs", e);
             }
             break;
-          // You can attempt to cancel an in_progress run using the Cancel Run endpoint.
-          // Once the attempt to cancel succeeds, status of the Run moves to cancelled.
-          // Cancellation is attempted but not guaranteed.
           case "cancelling":
-          // The Run successfully completed! You can now view all Messages the Assistant added to the Thread, and all the steps the Run took.
-          // You can also continue the conversation by adding more user Messages to the Thread and creating another Run.
           case "completed":
-          // You can view the reason for the failure by looking at the last_error object in the Run.
-          // The timestamp for the failure will be recorded under failed_at.
           case "failed":
-          // Run was successfully cancelled.
           case "cancelled":
-          // This happens when the function calling outputs were not submitted before expires_at and the run expires.
-          // Additionally, if the runs take too long to execute and go beyond the time stated in expires_at,
-          // our systems will expire the run.
           case "expired":
-            // Delete the SQS message
-            console.log("Deleted message");
+            console.log("Deleted message", assistant_id, thread_id, run_id);
             await sqsClient.send(new DeleteMessageCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
@@ -155,5 +134,9 @@ export const handler: Handler = async (event: SQSEvent, context) => {
     // sleep randomSecond
     await new Promise((resolve) => setTimeout(resolve, randomSecond));
   }
-  return `Successfully processed ${records.length} records.`;
+  console.log(`Successfully processed ${records.length} records.`);
+  return {
+    success: true,
+    count: records.length,
+  };
 }
