@@ -1,11 +1,24 @@
 import {Handler, SQSEvent} from "aws-lambda";
 import OpenAI from "openai";
 import {ChangeMessageVisibilityCommand, DeleteMessageCommand, SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {DynamoDBDocumentClient, UpdateCommand} from "@aws-sdk/lib-dynamodb";
 import {Redis} from "@upstash/redis";
 import {functionHandlerMap, TelegramFunctions} from "./tools/telegram";
 
 export const sqsClient = new SQSClient({
   region: "ap-northeast-1",
+});
+
+const ddbClient = new DynamoDBClient({
+  region: "ap-northeast-1",
+});
+
+export const ddbDocClient = DynamoDBDocumentClient.from(ddbClient, {
+  marshallOptions: {
+    convertEmptyValues: true,
+    removeUndefinedValues: true,
+  },
 });
 
 export const redisClient = Redis.fromEnv();
@@ -45,6 +58,24 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             },
             MessageGroupId: `${assistant_id}-${thread_id}`,
           }))
+          await ddbDocClient.send(new UpdateCommand({
+            TableName: "abandonai-prod",
+            Key: {
+              PK: `ASST#${assistant_id}`,
+              SK: `THREAD#${thread_id}`,
+            },
+            ExpressionAttributeNames: {
+              "#runs": "runs",
+              "#updated": "updated",
+            },
+            ExpressionAttributeValues: {
+              ":empty_list": [],
+              ":runs": [run_id],
+              ":updated": Math.floor(Date.now() / 1000),
+            },
+            UpdateExpression:
+              "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
+          }))
         } catch (e) {
           console.log("Failed to create run", e);
         }
@@ -55,8 +86,12 @@ export const handler: Handler = async (event: SQSEvent, context) => {
       }))
     } else if (intent === 'threads.runs.retrieve') {
       const {thread_id, run_id, assistant_id} = JSON.parse(body);
+      console.log(assistant_id);
+      console.log(thread_id);
+      console.log(run_id);
       try {
         const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
+        console.log(status);
         switch (status) {
           case "queued":
           case "in_progress":
@@ -68,16 +103,15 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             }))
             break;
           case "requires_action":
+            await sqsClient.send(new DeleteMessageCommand({
+              QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+              ReceiptHandle: receiptHandle,
+            }))
             if (!required_action) {
               console.log("Required action not found");
               break;
             }
             const tool_calls = required_action.submit_tool_outputs.tool_calls;
-            if (tool_calls.length === 0) {
-              console.log("No tool calls found");
-              break;
-            }
-            console.log(JSON.stringify(tool_calls));
             let tool_outputs_promises = [];
             for (const toolCall of tool_calls) {
               const function_name = toolCall.function.name;
@@ -109,11 +143,10 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           case "failed":
           case "cancelled":
           case "expired":
-            console.log("Deleted message", assistant_id, thread_id, run_id);
             await sqsClient.send(new DeleteMessageCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
-            }))
+            }));
             break;
           default:
             break;
@@ -122,7 +155,10 @@ export const handler: Handler = async (event: SQSEvent, context) => {
         console.log(e)
       }
     } else {
-      console.log(intent, from)
+      await sqsClient.send(new DeleteMessageCommand({
+        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+        ReceiptHandle: receiptHandle,
+      }));
     }
     // sleep randomSecond
     await new Promise((resolve) => setTimeout(resolve, randomSecond));
