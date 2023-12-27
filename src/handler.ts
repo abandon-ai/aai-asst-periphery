@@ -22,7 +22,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
     const randomSecond = Math.floor(Math.random() * 100) + 100;
     if (intent === 'threads.runs.create') {
       if (from === "telegram") {
-        const {thread_id, assistant_id} = JSON.parse(body);
+        const {thread_id, assistant_id, update_id} = JSON.parse(body);
         try {
           const {id: run_id} = await openai.beta.threads.runs.create(thread_id, {
             assistant_id,
@@ -35,7 +35,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               thread_id,
               run_id,
               assistant_id,
-              timestamp: new Date().getTime(),
+              update_id,
             }),
             MessageAttributes: {
               intent: {
