@@ -76,6 +76,10 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             UpdateExpression:
               "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
           }))
+          console.log("Created run successfully");
+          console.log(assistant_id);
+          console.log(thread_id);
+          console.log(run_id);
         } catch (e) {
           console.log("Failed to create run", e);
           await sqsClient.send(new ChangeMessageVisibilityCommand({
