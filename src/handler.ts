@@ -78,6 +78,12 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           }))
         } catch (e) {
           console.log("Failed to create run", e);
+          await sqsClient.send(new ChangeMessageVisibilityCommand({
+            QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+            ReceiptHandle: receiptHandle,
+            VisibilityTimeout: 10,
+          }));
+          console.log("Changed message visibility to 10 seconds");
         }
       }
       await sqsClient.send(new DeleteMessageCommand({
@@ -95,12 +101,12 @@ export const handler: Handler = async (event: SQSEvent, context) => {
         switch (status) {
           case "queued":
           case "in_progress":
-            console.log("Change message visibility to 10 seconds");
             await sqsClient.send(new ChangeMessageVisibilityCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
               VisibilityTimeout: 10,
             }))
+            console.log("Changed message visibility to 10 seconds");
             break;
           case "requires_action":
             await sqsClient.send(new DeleteMessageCommand({
@@ -129,7 +135,6 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               break;
             }
             const tool_outputs = await Promise.all(tool_outputs_promises);
-            console.log("tool_outputs", tool_outputs);
             try {
               openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
                 tool_outputs,
