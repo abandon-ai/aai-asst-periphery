@@ -1,6 +1,6 @@
 import {Handler, SQSEvent} from "aws-lambda";
 import OpenAI from "openai";
-import {ChangeMessageVisibilityCommand, DeleteMessageCommand, SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
+import {SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {DynamoDBDocumentClient, UpdateCommand} from "@aws-sdk/lib-dynamodb";
 import {Redis} from "@upstash/redis";
@@ -32,7 +32,6 @@ export const handler: Handler = async (event: SQSEvent, context) => {
     const intent = messageAttributes?.intent?.stringValue || undefined;
     const from = messageAttributes?.from?.stringValue || undefined;
 
-    const randomSecond = Math.floor(Math.random() * 100) + 100;
     if (intent === 'threads.runs.create') {
       if (from === "telegram") {
         const {thread_id, assistant_id, update_id} = JSON.parse(body);
@@ -79,25 +78,12 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             UpdateExpression:
               "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
           }))
-          console.log("Created run successfully");
           console.log(run_id);
         } catch (e) {
-          console.log("Failed to create run", e);
-          await sqsClient.send(new ChangeMessageVisibilityCommand({
-            QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-            ReceiptHandle: receiptHandle,
-            VisibilityTimeout: 10,
-          })).catch((e) => {
-            console.log("Failed to change message visibility", e);
-          });
-          console.log("Changed message visibility to 10 seconds");
+          throw new Error("Failed to create run");
         }
       } else {
         console.log("Not from telegram");
-        await sqsClient.send(new DeleteMessageCommand({
-          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-          ReceiptHandle: receiptHandle,
-        }))
       }
     } else if (intent === 'threads.runs.retrieve') {
       const {thread_id, run_id, assistant_id} = JSON.parse(body);
@@ -111,20 +97,8 @@ export const handler: Handler = async (event: SQSEvent, context) => {
         switch (status) {
           case "queued":
           case "in_progress":
-            await sqsClient.send(new ChangeMessageVisibilityCommand({
-              QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-              ReceiptHandle: receiptHandle,
-              VisibilityTimeout: 10,
-            })).catch((e) => {
-              console.log("Failed to change message visibility", e);
-            })
-            console.log("Changed message visibility to 10 seconds");
-            break;
+            throw new Error("queued or in_progress");
           case "requires_action":
-            await sqsClient.send(new DeleteMessageCommand({
-              QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-              ReceiptHandle: receiptHandle,
-            }));
             if (!required_action) {
               console.log("Required action not found");
               break;
@@ -161,24 +135,15 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           case "cancelled":
           case "expired":
           default:
-            await sqsClient.send(new DeleteMessageCommand({
-              QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-              ReceiptHandle: receiptHandle,
-            }));
             break;
         }
       } catch (e) {
-        console.log("Failed to retrieve run", e);
+        console.log(e);
+        throw new Error("Failed to retrieve run");
       }
     } else {
       console.log("Unknown intent", intent);
-      await sqsClient.send(new DeleteMessageCommand({
-        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-        ReceiptHandle: receiptHandle,
-      }));
     }
-    // sleep randomSecond
-    await new Promise((resolve) => setTimeout(resolve, randomSecond));
   }
   console.log(`Successfully processed ${records.length} records.`);
   return {
