@@ -27,8 +27,8 @@ functions:
   handler:
     name: "abandonai-asst-thread-handler"
     handler: "src/handler.handler"
-    timeout: 30
-    memorySize: 256
+    timeout: 60
+    memorySize: 512
     architecture: arm64
     reservedConcurrency: 1
     events:
