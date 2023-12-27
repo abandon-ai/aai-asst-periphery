@@ -36,6 +36,8 @@ export const handler: Handler = async (event: SQSEvent, context) => {
     if (intent === 'threads.runs.create') {
       if (from === "telegram") {
         const {thread_id, assistant_id, update_id} = JSON.parse(body);
+        console.log(assistant_id);
+        console.log(thread_id);
         try {
           const {id: run_id} = await openai.beta.threads.runs.create(thread_id, {
             assistant_id,
@@ -77,8 +79,6 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
           }))
           console.log("Created run successfully");
-          console.log(assistant_id);
-          console.log(thread_id);
           console.log(run_id);
         } catch (e) {
           console.log("Failed to create run", e);
