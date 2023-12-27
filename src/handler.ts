@@ -1,6 +1,6 @@
 import {Handler, SQSEvent} from "aws-lambda";
 import OpenAI from "openai";
-import {SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
+import {SendMessageCommand, SQSClient, ChangeMessageVisibilityCommand} from "@aws-sdk/client-sqs";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {DynamoDBDocumentClient, UpdateCommand} from "@aws-sdk/lib-dynamodb";
 import {Redis} from "@upstash/redis";
@@ -80,6 +80,11 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           }))
           console.log(run_id);
         } catch (e) {
+          await sqsClient.send(new ChangeMessageVisibilityCommand({
+            QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+            ReceiptHandle: receiptHandle,
+            VisibilityTimeout: 5,
+          }))
           throw new Error("Failed to create run");
         }
       } else {
@@ -97,6 +102,11 @@ export const handler: Handler = async (event: SQSEvent, context) => {
         switch (status) {
           case "queued":
           case "in_progress":
+            await sqsClient.send(new ChangeMessageVisibilityCommand({
+              QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+              ReceiptHandle: receiptHandle,
+              VisibilityTimeout: 5,
+            }))
             throw new Error("queued or in_progress");
           case "requires_action":
             if (!required_action) {
@@ -138,7 +148,11 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             break;
         }
       } catch (e) {
-        console.log(e);
+        await sqsClient.send(new ChangeMessageVisibilityCommand({
+          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+          ReceiptHandle: receiptHandle,
+          VisibilityTimeout: 5,
+        }))
         throw new Error("Failed to retrieve run");
       }
     } else {
