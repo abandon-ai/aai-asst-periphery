@@ -110,14 +110,15 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               console.log("No tool outputs found");
               break;
             }
-            await Promise.all(tool_outputs_promises).then((tool_outputs: Array<RunSubmitToolOutputsParams.ToolOutput>) => {
+            const tool_outputs = await Promise.all(tool_outputs_promises);
+            console.log("tool_outputs", tool_outputs);
+            try {
               openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
                 tool_outputs,
               });
-            }).catch(error => {
-              // Handle errors for any of the promises
-              console.error("Error while processing tool outputs:", error);
-            });
+            } catch (e) {
+              console.log("Failed to submit tool outputs", e);
+            }
             break;
           // You can attempt to cancel an in_progress run using the Cancel Run endpoint.
           // Once the attempt to cancel succeeds, status of the Run moves to cancelled.
