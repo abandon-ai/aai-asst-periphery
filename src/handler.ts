@@ -82,14 +82,18 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
             ReceiptHandle: receiptHandle,
             VisibilityTimeout: 10,
-          }));
+          })).catch((e) => {
+            console.log("Failed to change message visibility", e);
+          });
           console.log("Changed message visibility to 10 seconds");
         }
+      } else {
+        console.log("Not from telegram");
+        await sqsClient.send(new DeleteMessageCommand({
+          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+          ReceiptHandle: receiptHandle,
+        }))
       }
-      await sqsClient.send(new DeleteMessageCommand({
-        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-        ReceiptHandle: receiptHandle,
-      }))
     } else if (intent === 'threads.runs.retrieve') {
       const {thread_id, run_id, assistant_id} = JSON.parse(body);
       console.log(assistant_id);
@@ -105,7 +109,9 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
               VisibilityTimeout: 10,
-            }))
+            })).catch((e) => {
+              console.log("Failed to change message visibility", e);
+            })
             console.log("Changed message visibility to 10 seconds");
             break;
           case "requires_action":
