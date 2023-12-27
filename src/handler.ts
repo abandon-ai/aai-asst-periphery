@@ -112,7 +112,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             await sqsClient.send(new DeleteMessageCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
-            }))
+            }));
             if (!required_action) {
               console.log("Required action not found");
               break;
@@ -148,18 +148,18 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           case "failed":
           case "cancelled":
           case "expired":
+          default:
             await sqsClient.send(new DeleteMessageCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
             }));
             break;
-          default:
-            break;
         }
       } catch (e) {
-        console.log(e)
+        console.log("Failed to retrieve run", e);
       }
     } else {
+      console.log("Unknown intent", intent);
       await sqsClient.send(new DeleteMessageCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
         ReceiptHandle: receiptHandle,
