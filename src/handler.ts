@@ -93,6 +93,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               console.log("No tool calls found");
               break;
             }
+            console.log(JSON.stringify(tool_calls));
             let tool_outputs_promises = [];
             for (const toolCall of tool_calls) {
               const function_name = toolCall.function.name;
@@ -109,7 +110,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               console.log("No tool outputs found");
               break;
             }
-            Promise.all(tool_outputs_promises).then((tool_outputs: Array<RunSubmitToolOutputsParams.ToolOutput>) => {
+            await Promise.all(tool_outputs_promises).then((tool_outputs: Array<RunSubmitToolOutputsParams.ToolOutput>) => {
               openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
                 tool_outputs,
               });
