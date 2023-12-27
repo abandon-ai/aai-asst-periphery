@@ -36,6 +36,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
     if (intent === 'threads.runs.create') {
       if (from === "telegram") {
         const {thread_id, assistant_id, update_id} = JSON.parse(body);
+        console.log("threads.runs.create")
         console.log(assistant_id);
         console.log(thread_id);
         try {
@@ -100,6 +101,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
       }
     } else if (intent === 'threads.runs.retrieve') {
       const {thread_id, run_id, assistant_id} = JSON.parse(body);
+      console.log("threads.runs.retrieve");
       console.log(assistant_id);
       console.log(thread_id);
       console.log(run_id);
