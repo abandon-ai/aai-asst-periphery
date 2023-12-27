@@ -79,6 +79,7 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
     // @ts-ignore
     const telegram = asst_info?.metadata?.telegram || undefined;
     if (!telegram) {
+      console.log("This assistant is not configured to use Telegram.")
       return {
         tool_call_id: toolCall.id,
         output: JSON.stringify({
@@ -88,7 +89,6 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
       }
     }
     try {
-      console.log('Prepare sendMessage', chat_id, text);
       const res = await fetch(`https://api.telegram.org/bot${telegram}/sendMessage`, {
         method: 'POST',
         headers: {
@@ -108,7 +108,7 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
         output: JSON.stringify(res),
       }
     } catch (e) {
-      console.error(e);
+      console.log("Failed to sendMessage.", e);
       return {
         tool_call_id: toolCall.id,
         output: JSON.stringify({
@@ -118,6 +118,7 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
       }
     }
   } else {
+    console.log("No arguments provided to sendMessage.")
     return {
       tool_call_id: toolCall.id,
       output: JSON.stringify({
