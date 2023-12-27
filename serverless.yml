@@ -34,5 +34,4 @@ functions:
     events:
       - sqs:
           arn: ${env:AI_ASST_SQS_FIFO_ARN}
-          maximumRetryAttempts: 10
           batchSize: 1
