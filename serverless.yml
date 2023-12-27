@@ -30,8 +30,7 @@ functions:
     timeout: 30
     memorySize: 256
     architecture: arm64
-    reservedConcurrency: 5
+    reservedConcurrency: 1
     events:
       - sqs:
           arn: ${env:AI_ASST_SQS_FIFO_ARN}
-          batchSize: 5
