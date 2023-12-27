@@ -3,8 +3,6 @@ import OpenAI from "openai";
 import {ChangeMessageVisibilityCommand, DeleteMessageCommand, SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
 import {Redis} from "@upstash/redis";
 import {functionHandlerMap, TelegramFunctions} from "./tools/telegram";
-// @ts-ignore
-import {RunSubmitToolOutputsParams} from "openai/resources/beta/threads";
 
 export const sqsClient = new SQSClient({
   region: "ap-northeast-1",
