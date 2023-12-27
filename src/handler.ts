@@ -35,6 +35,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               thread_id,
               run_id,
               assistant_id,
+              timestamp: new Date().getTime(),
             }),
             MessageAttributes: {
               intent: {
@@ -43,7 +44,6 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               },
             },
             MessageGroupId: `${assistant_id}-${thread_id}`,
-            MessageDeduplicationId: `${assistant_id}-${thread_id}-${run_id}`,
           }))
         } catch (e) {
           console.log("Failed to create run", e);
