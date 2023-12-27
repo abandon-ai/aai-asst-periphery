@@ -103,13 +103,9 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
           reply_markup,
         })
       }).then((res) => res.json());
-      console.log(res);
       return {
         tool_call_id: toolCall.id,
-        output: JSON.stringify({
-          success: true,
-          msg: res,
-        }),
+        output: JSON.stringify(res),
       }
     } catch (e) {
       console.error(e);

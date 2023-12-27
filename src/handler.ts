@@ -24,13 +24,11 @@ export const handler: Handler = async (event: SQSEvent, context) => {
       if (from === "telegram") {
         const {thread_id, assistant_id} = JSON.parse(body);
         try {
-          console.log("Prepare create run", thread_id, assistant_id);
           const {id: run_id} = await openai.beta.threads.runs.create(thread_id, {
             assistant_id,
             additional_instructions: 'You are a telegram bot now. You will receive a update from telegram API. Then, you should send message to target chat.',
             tools: TelegramFunctions,
           })
-          console.log("Create run", thread_id, assistant_id, run_id);
           await sqsClient.send(new SendMessageCommand({
             QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
             MessageBody: JSON.stringify({
@@ -47,12 +45,10 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             MessageGroupId: `${assistant_id}-${thread_id}`,
             MessageDeduplicationId: `${assistant_id}-${thread_id}-${run_id}`,
           }))
-          console.log("Send message, threads.runs.retrieve", thread_id, assistant_id, run_id);
         } catch (e) {
           console.log("Failed to create run", e);
         }
       }
-      console.log("Handler threads.runs.create success! Delete message", receiptHandle);
       await sqsClient.send(new DeleteMessageCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
         ReceiptHandle: receiptHandle,
@@ -61,7 +57,6 @@ export const handler: Handler = async (event: SQSEvent, context) => {
       const {thread_id, run_id, assistant_id} = JSON.parse(body);
       try {
         const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
-        console.log(thread_id, run_id, status);
         switch (status) {
           case "queued":
           case "in_progress":
