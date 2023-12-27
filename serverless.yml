@@ -28,9 +28,9 @@ functions:
     name: "abandonai-asst-thread-handler"
     handler: "src/handler.handler"
     timeout: 60
-    memorySize: 512
+    memorySize: 256
     architecture: arm64
-    reservedConcurrency: 1
+    reservedConcurrency: 5
     events:
       - sqs:
           arn: ${env:AI_ASST_SQS_FIFO_ARN}
