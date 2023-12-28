@@ -57,7 +57,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
           } else {
             console.log(`threads.runs.retrieve...${function_name} not found`);
           }
-          const random = Math.floor(Math.random() * 1000);
+          const random = Math.floor((Math.random() + 1) * 1000);
           await new Promise((resolve) => setTimeout(resolve, random));
         }
         try {
