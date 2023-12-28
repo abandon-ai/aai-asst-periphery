@@ -21,7 +21,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   }
 
   // Check assistant_id
-  const assistant_id = await redisClient.get(`${token}:assistant_id`);
+  const assistant_id = await redisClient.get(`ASST_ID#${token}`);
   if (!assistant_id) {
     return {
       statusCode: 200,
