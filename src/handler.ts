@@ -1,39 +1,14 @@
 import {Handler, SQSEvent} from "aws-lambda";
 import OpenAI from "openai";
-import {SendMessageCommand, SQSClient, ChangeMessageVisibilityCommand} from "@aws-sdk/client-sqs";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {DynamoDBDocumentClient, UpdateCommand} from "@aws-sdk/lib-dynamodb";
-import {Redis} from "@upstash/redis";
+import {SendMessageCommand, ChangeMessageVisibilityCommand} from "@aws-sdk/client-sqs";
+import {UpdateCommand} from "@aws-sdk/lib-dynamodb";
 import {functionHandlerMap, TelegramFunctions} from "./tools/telegram";
-
-export const sqsClient = new SQSClient({
-  region: "ap-northeast-1",
-});
-
-const ddbClient = new DynamoDBClient({
-  region: "ap-northeast-1",
-});
-
-export const ddbDocClient = DynamoDBDocumentClient.from(ddbClient, {
-  marshallOptions: {
-    convertEmptyValues: true,
-    removeUndefinedValues: true,
-  },
-});
-
-export const redisClient = Redis.fromEnv();
+import sqsClient from "./utils/sqsClient";
+import ddbDocClient from "./utils/ddbDocClient";
+import redisClient from "./utils/redisClient";
+import backOffSecond from "./utils/backOffSecond";
 
 const openai = new OpenAI();
-
-const backOffSecond = (nonce: number) => {
-  const factor = Math.random() * 0.2 + 1;
-  const MAX = 600;
-  if (2 ** nonce < MAX) {
-    return 2 ** nonce * factor;
-  } else {
-    return MAX * factor;
-  }
-}
 
 export const handler: Handler = async (event: SQSEvent, context) => {
   const records = event.Records;
