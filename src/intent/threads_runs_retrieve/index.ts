@@ -45,23 +45,21 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
           break;
         }
         const tool_calls = required_action.submit_tool_outputs.tool_calls;
-        let tool_outputs_promises = [];
+        const tool_outputs = [];
         for (const toolCall of tool_calls) {
           const function_name = toolCall.function.name;
           console.log("threads.runs.retrieve...function", function_name);
           const handler = functionHandlerMap[function_name!];
           if (handler) {
             // Instead of awaiting each handler, push the promise into an array
-            tool_outputs_promises.push(handler(toolCall, assistant_id));
+            const res = await handler(toolCall, assistant_id)
+            tool_outputs.push(res);
           } else {
             console.log(`threads.runs.retrieve...${function_name} not found`);
           }
+          const random = Math.floor(Math.random() * 1000);
+          await new Promise((resolve) => setTimeout(resolve, random));
         }
-        if (tool_outputs_promises.length === 0) {
-          console.log("No tool outputs found");
-          break;
-        }
-        const tool_outputs = await Promise.all(tool_outputs_promises);
         try {
           openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
             tool_outputs,
