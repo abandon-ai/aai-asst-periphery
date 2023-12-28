@@ -63,8 +63,6 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
     }
   }
 
-
-
   try {
     await Promise.all([
       openai.beta.threads.messages.create(thread_id as string, {
