@@ -63,38 +63,51 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   }
 
   try {
-    await Promise.all([
-      openai.beta.threads.messages.create(thread_id as string, {
-        role: "user",
-        content: JSON.stringify(body),
-      }),
-      sqsClient.send(
-        new SendMessageCommand({
-          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-          MessageBody: JSON.stringify({
-            thread_id,
-            assistant_id,
-            update_id,
-            token,
-            chat_id,
-          }),
-          MessageAttributes: {
-            intent: {
-              StringValue: "threads.runs.create",
-              DataType: "String",
-            },
-            from: {
-              StringValue: "telegram",
-              DataType: "String",
-            },
-          },
-          MessageDeduplicationId: `${assistant_id}-${thread_id}-${update_id}`,
-          MessageGroupId: `${assistant_id}-${thread_id}`,
-        }),
-      ),
-    ]);
+    await openai.beta.threads.messages.create(thread_id as string, {
+      role: "user",
+      content: JSON.stringify(body),
+    })
   } catch (_) {
     console.log("openai.beta.threads.messages.create error");
+    const { id } = await openai.beta.threads.create();
+    thread_id = id;
+    await redisClient.set(
+      `${assistant_id}:telegram:${chat_id}:thread_id`,
+      thread_id,
+    );
+    await openai.beta.threads.messages.create(thread_id as string, {
+      role: "user",
+      content: JSON.stringify(body),
+    })
+  }
+
+  try {
+    await sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+        MessageBody: JSON.stringify({
+          thread_id,
+          assistant_id,
+          update_id,
+          token,
+          chat_id,
+        }),
+        MessageAttributes: {
+          intent: {
+            StringValue: "threads.runs.create",
+            DataType: "String",
+          },
+          from: {
+            StringValue: "telegram",
+            DataType: "String",
+          },
+        },
+        MessageDeduplicationId: `${assistant_id}-${thread_id}-${update_id}`,
+        MessageGroupId: `${assistant_id}-${thread_id}`,
+      }),
+    )
+  } catch (e) {
+    console.log("sqsClient.send error", e);
   }
 
   return {
