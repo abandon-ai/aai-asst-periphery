@@ -27,7 +27,7 @@ functions:
   handler:
     name: "abandonai-asst-thread-handler"
     handler: "src/handler.handler"
-    timeout: 60
+    timeout: 30
     memorySize: 256
     architecture: arm64
     reservedConcurrency: 5
@@ -35,3 +35,13 @@ functions:
       - sqs:
           arn: ${env:AI_ASST_SQS_FIFO_ARN}
           batchSize: 1
+  telegram-bot:
+    name: "abandonai-asst-telegram-bot"
+    handler: "src/webhook/telegram.handler"
+    timeout: 30
+    memorySize: 256
+    architecture: arm64
+    events:
+      - http:
+          path: "/webhook/telegram/{proxy+}"
+          method: "POST"
