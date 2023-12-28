@@ -43,5 +43,5 @@ functions:
     architecture: arm64
     events:
       - httpApi:
-          path: "/webhook/telegram/{proxy+}"
+          path: "/telegram/{proxy+}"
           method: "POST"
