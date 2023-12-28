@@ -5,14 +5,13 @@ import ddbDocClient from "../../utils/ddbDocClient";
 import {UpdateCommand} from "@aws-sdk/lib-dynamodb";
 import redisClient from "../../utils/redisClient";
 import backOffSecond from "../../utils/backOffSecond";
-import OpenAI from "openai";
 import {SQSRecord} from "aws-lambda";
+import openai from "../../utils/openai";
 
 const Threads_runs_create = async (record: SQSRecord) => {
   const {messageAttributes, body, receiptHandle, messageId} = record;
   const nextNonce = await redisClient.incr(messageId);
   const from = messageAttributes?.from?.stringValue || undefined;
-  const openai = new OpenAI();
 
   console.log("threads.runs.create...nextNonce", nextNonce);
   if (from === "telegram") {

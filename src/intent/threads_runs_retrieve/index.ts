@@ -4,12 +4,11 @@ import {ChangeMessageVisibilityCommand} from "@aws-sdk/client-sqs";
 import backOffSecond from "../../utils/backOffSecond";
 import {functionHandlerMap} from "../../tools/telegram";
 import {SQSRecord} from "aws-lambda";
-import OpenAI from "openai";
+import openai from "../../utils/openai";
 
 const Threads_runs_retrieve = async (record: SQSRecord) => {
   const {body, receiptHandle, messageId} = record;
   const nextNonce = await redisClient.incr(messageId);
-  const openai = new OpenAI();
 
   console.log("threads.runs.retrieve...nextNonce", nextNonce);
   const {thread_id, run_id, assistant_id, token, chat_id} = JSON.parse(body);
