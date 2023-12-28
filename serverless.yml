@@ -31,6 +31,7 @@ functions:
     memorySize: 256
     architecture: arm64
     reservedConcurrency: 5
+    maximumRetryAttempts: 1
     events:
       - sqs:
           arn: ${env:AI_ASST_SQS_FIFO_ARN}
@@ -41,6 +42,7 @@ functions:
     timeout: 6
     memorySize: 256
     architecture: arm64
+    maximumRetryAttempts: 2
     events:
       - httpApi:
           path: "/telegram/{proxy+}"
