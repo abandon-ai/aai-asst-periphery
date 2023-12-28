@@ -1,8 +1,8 @@
 import {APIGatewayEvent, Handler} from "aws-lambda";
 import redisClient from "../utils/redisClient";
-import OpenAI from "openai";
 import sqsClient from "../utils/sqsClient";
 import {SendMessageCommand} from "@aws-sdk/client-sqs";
+import openai from "../utils/openai";
 
 export const handler: Handler = async (event: APIGatewayEvent, context) => {
   const body = JSON.parse(event?.body || '{}');
@@ -29,7 +29,6 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
     }
   }
 
-  const openai = new OpenAI();
   const chat_id = body?.message?.chat?.id;
   const update_id = body?.update_id;
 
