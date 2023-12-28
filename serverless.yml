@@ -38,10 +38,10 @@ functions:
   telegram-bot:
     name: "abandonai-asst-telegram-bot"
     handler: "src/webhook/telegram.handler"
-    timeout: 30
+    timeout: 6
     memorySize: 256
     architecture: arm64
     events:
-      - http:
+      - httpApi:
           path: "/webhook/telegram/{proxy+}"
           method: "POST"
