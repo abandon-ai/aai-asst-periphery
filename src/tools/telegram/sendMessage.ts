@@ -1,6 +1,6 @@
 // @ts-ignore
 import {RunCreateParams, Runs, RunSubmitToolOutputsParams} from "openai/resources/beta/threads";
-import {redisClient} from "../../handler";
+import redisClient from "../../utils/redisClient";
 
 export const sendMessage: RunCreateParams.AssistantToolsFunction = {
   type: 'function',
