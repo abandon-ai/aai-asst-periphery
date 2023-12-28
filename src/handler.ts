@@ -25,10 +25,21 @@ export const redisClient = Redis.fromEnv();
 
 const openai = new OpenAI();
 
+const backOffSecond = (nonce: number) => {
+  const factor = Math.random() * 0.2 + 1;
+  const MAX = 600;
+  if (2 ** nonce < MAX) {
+    return 2 ** nonce * factor;
+  } else {
+    return MAX * factor;
+  }
+}
+
 export const handler: Handler = async (event: SQSEvent, context) => {
   const records = event.Records;
   for (const record of records) {
     const {messageAttributes, body, receiptHandle} = record;
+    const nextNonce = await redisClient.incr(receiptHandle);
     const intent = messageAttributes?.intent?.stringValue || undefined;
     const from = messageAttributes?.from?.stringValue || undefined;
 
@@ -36,14 +47,12 @@ export const handler: Handler = async (event: SQSEvent, context) => {
       if (from === "telegram") {
         const {thread_id, assistant_id, update_id, token, chat_id} = JSON.parse(body);
         console.log("threads.runs.create")
-        console.log(assistant_id);
-        console.log(thread_id);
         try {
           const {id: run_id} = await openai.beta.threads.runs.create(thread_id, {
             assistant_id,
             additional_instructions: 'You are a telegram bot now. You will receive a update from telegram API. Then, you should send message to target chat.',
             tools: TelegramFunctions,
-          })
+          });
           await sqsClient.send(new SendMessageCommand({
             QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
             MessageBody: JSON.stringify({
@@ -61,7 +70,7 @@ export const handler: Handler = async (event: SQSEvent, context) => {
               },
             },
             MessageGroupId: `${assistant_id}-${thread_id}`,
-          }))
+          }));
           await ddbDocClient.send(new UpdateCommand({
             TableName: "abandonai-prod",
             Key: {
@@ -79,13 +88,14 @@ export const handler: Handler = async (event: SQSEvent, context) => {
             },
             UpdateExpression:
               "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
-          }))
+          }));
+          await redisClient.del(receiptHandle);
           console.log(run_id);
         } catch (e) {
           await sqsClient.send(new ChangeMessageVisibilityCommand({
             QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
             ReceiptHandle: receiptHandle,
-            VisibilityTimeout: 5,
+            VisibilityTimeout: backOffSecond(nextNonce - 1),
           }))
           throw new Error("Failed to create run");
         }
@@ -95,16 +105,16 @@ export const handler: Handler = async (event: SQSEvent, context) => {
     } else if (intent === 'threads.runs.retrieve') {
       const {thread_id, run_id, assistant_id, token, chat_id} = JSON.parse(body);
       console.log("threads.runs.retrieve");
-      console.log(assistant_id);
-      console.log(thread_id);
-      console.log(run_id);
       try {
-        const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
+        const {status, required_action, expires_at} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
         console.log(status);
+        await redisClient.set(`${assistant_id}:${thread_id}:run`, run_id, {
+          exat: expires_at,
+        });
         switch (status) {
           case "queued":
           case "in_progress":
-            await fetch(`https://api.telegram.org/bot${token}/sendChatAction`, {
+            fetch(`https://api.telegram.org/bot${token}/sendChatAction`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -113,14 +123,17 @@ export const handler: Handler = async (event: SQSEvent, context) => {
                 chat_id,
                 action: "typing",
               })
+            }).catch((e) => {
+              console.log('SendChatAction error', e);
             })
             await sqsClient.send(new ChangeMessageVisibilityCommand({
               QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
               ReceiptHandle: receiptHandle,
-              VisibilityTimeout: 5,
+              VisibilityTimeout: backOffSecond(nextNonce - 1),
             }))
             throw new Error("queued or in_progress");
           case "requires_action":
+            await redisClient.del(receiptHandle);
             if (!required_action) {
               console.log("Required action not found");
               break;
@@ -157,13 +170,14 @@ export const handler: Handler = async (event: SQSEvent, context) => {
           case "cancelled":
           case "expired":
           default:
+            await redisClient.del(receiptHandle);
             break;
         }
       } catch (e) {
         await sqsClient.send(new ChangeMessageVisibilityCommand({
           QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
           ReceiptHandle: receiptHandle,
-          VisibilityTimeout: 5,
+          VisibilityTimeout: backOffSecond(nextNonce - 1),
         }))
         throw new Error("Failed to retrieve run");
       }
