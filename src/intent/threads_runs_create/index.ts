@@ -15,7 +15,6 @@ const Threads_runs_create = async (record: SQSRecord) => {
   const openai = new OpenAI();
 
   console.log("nextNonce", nextNonce);
-  console.log("backOffSecond", backOffSecond(nextNonce - 1));
   if (from === "telegram") {
     const {thread_id, assistant_id, update_id, token, chat_id} = JSON.parse(body);
     console.log("threads.runs.create...")

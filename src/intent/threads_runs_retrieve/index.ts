@@ -11,8 +11,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
   const nextNonce = await redisClient.incr(messageId);
   const openai = new OpenAI();
 
-  console.log("nextNonce", nextNonce);
-  console.log("backOffSecond", backOffSecond(nextNonce - 1));
+  console.log("nextNonce:", nextNonce);
   const {thread_id, run_id, assistant_id, token, chat_id} = JSON.parse(body);
   console.log("threads.runs.retrieve...");
   try {
