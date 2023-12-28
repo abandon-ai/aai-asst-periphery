@@ -9,8 +9,8 @@ import OpenAI from "openai";
 import {SQSRecord} from "aws-lambda";
 
 const Threads_runs_create = async (record: SQSRecord) => {
-  const {messageAttributes, body, receiptHandle} = record;
-  const nextNonce = await redisClient.incr(receiptHandle);
+  const {messageAttributes, body, receiptHandle, messageId} = record;
+  const nextNonce = await redisClient.incr(messageId);
   const from = messageAttributes?.from?.stringValue || undefined;
   const openai = new OpenAI();
 
@@ -61,7 +61,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
         UpdateExpression:
           "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
       }));
-      await redisClient.del(receiptHandle);
+      await redisClient.del(messageId);
       console.log("threads.runs.create:", run_id);
     } catch (e) {
       await sqsClient.send(new ChangeMessageVisibilityCommand({

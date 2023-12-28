@@ -7,8 +7,8 @@ import {SQSRecord} from "aws-lambda";
 import OpenAI from "openai";
 
 const Threads_runs_retrieve = async (record: SQSRecord) => {
-  const {body, receiptHandle} = record;
-  const nextNonce = await redisClient.incr(receiptHandle);
+  const {body, receiptHandle, messageId} = record;
+  const nextNonce = await redisClient.incr(messageId);
   const openai = new OpenAI();
 
   console.log("nextNonce", nextNonce);
@@ -80,7 +80,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
       case "cancelled":
       case "expired":
       default:
-        await redisClient.del(receiptHandle);
+        await redisClient.del(messageId);
         break;
     }
   } catch (e) {
