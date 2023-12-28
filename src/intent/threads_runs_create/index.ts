@@ -14,10 +14,9 @@ const Threads_runs_create = async (record: SQSRecord) => {
   const from = messageAttributes?.from?.stringValue || undefined;
   const openai = new OpenAI();
 
-  console.log("nextNonce", nextNonce);
+  console.log("threads.runs.create...nextNonce", nextNonce);
   if (from === "telegram") {
     const {thread_id, assistant_id, update_id, token, chat_id} = JSON.parse(body);
-    console.log("threads.runs.create...")
     try {
       const {id: run_id} = await openai.beta.threads.runs.create(thread_id, {
         assistant_id,
@@ -61,17 +60,17 @@ const Threads_runs_create = async (record: SQSRecord) => {
           "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
       }));
       await redisClient.del(messageId);
-      console.log("threads.runs.create:", run_id);
+      console.log("threads.runs.create...", run_id);
     } catch (e) {
       await sqsClient.send(new ChangeMessageVisibilityCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
         ReceiptHandle: receiptHandle,
         VisibilityTimeout: backOffSecond(nextNonce - 1),
       }))
-      throw new Error("Failed to create run");
+      throw new Error("threads.runs.create...failed to create run");
     }
   } else {
-    console.log("Not from telegram");
+    console.log("threads.runs.create...from error", from);
   }
 }
 

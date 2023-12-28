@@ -11,9 +11,8 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
   const nextNonce = await redisClient.incr(messageId);
   const openai = new OpenAI();
 
-  console.log("nextNonce:", nextNonce);
+  console.log("threads.runs.retrieve...nextNonce", nextNonce);
   const {thread_id, run_id, assistant_id, token, chat_id} = JSON.parse(body);
-  console.log("threads.runs.retrieve...");
   try {
     const {status, required_action, expires_at} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
     console.log(status);
@@ -33,31 +32,30 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
             action: "typing",
           })
         }).catch((e) => {
-          console.log('SendChatAction error', e);
+          console.log('threads.runs.retrieve...failed to send chat action', e);
         })
         await sqsClient.send(new ChangeMessageVisibilityCommand({
           QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
           ReceiptHandle: receiptHandle,
           VisibilityTimeout: backOffSecond(nextNonce - 1),
         }))
-        throw new Error("queued or in_progress");
+        throw new Error(`threads.runs.retrieve...${status}`);
       case "requires_action":
         await redisClient.del(receiptHandle);
         if (!required_action) {
-          console.log("Required action not found");
           break;
         }
         const tool_calls = required_action.submit_tool_outputs.tool_calls;
         let tool_outputs_promises = [];
         for (const toolCall of tool_calls) {
           const function_name = toolCall.function.name;
-          console.log("function_name", function_name);
+          console.log("threads.runs.retrieve...function", function_name);
           const handler = functionHandlerMap[function_name!];
           if (handler) {
             // Instead of awaiting each handler, push the promise into an array
             tool_outputs_promises.push(handler(toolCall, assistant_id));
           } else {
-            console.log(`Function ${function_name} not found`);
+            console.log(`threads.runs.retrieve...${function_name} not found`);
           }
         }
         if (tool_outputs_promises.length === 0) {
@@ -70,7 +68,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
             tool_outputs,
           });
         } catch (e) {
-          console.log("Failed to submit tool outputs", e);
+          console.log("threads.runs.retrieve...failed to submit tool outputs", e);
         }
         break;
       case "cancelling":
@@ -88,7 +86,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
       ReceiptHandle: receiptHandle,
       VisibilityTimeout: backOffSecond(nextNonce - 1),
     }))
-    throw new Error("Failed to retrieve run");
+    throw new Error("threads.runs.retrieve...failed");
   }
 }
 
