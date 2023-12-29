@@ -60,7 +60,7 @@ const Threads_messages_create = async (record: SQSRecord) => {
             },
             body: JSON.stringify({
               chat_id,
-              text: "I got it. But I am busy now. I will reply to you after I finish dealing with it.",
+              text: "Wait for a second!",
             }),
           })
         } catch (e) {
