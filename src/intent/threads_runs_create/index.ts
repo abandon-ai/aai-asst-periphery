@@ -15,7 +15,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
 
   console.log("threads.runs.create...retry times", retryTimes);
   if (from === "telegram") {
-    const {thread_id, assistant_id, token, chat_id} = JSON.parse(body);
+    const {thread_id, assistant_id, token, chat_id, message} = JSON.parse(body);
     try {
       const {id: run_id, expires_at} = await openai.beta.threads.runs.create(thread_id, {
         assistant_id,
@@ -37,6 +37,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
             assistant_id,
             token,
             chat_id,
+            message,
             intent: "threads.runs.retrieve",
           }),
           MessageAttributes: {
