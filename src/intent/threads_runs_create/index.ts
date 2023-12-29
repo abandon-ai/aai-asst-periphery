@@ -10,10 +10,10 @@ import openai from "../../utils/openai";
 
 const Threads_runs_create = async (record: SQSRecord) => {
   const {messageAttributes, body, receiptHandle, messageId} = record;
-  const nextNonce = await redisClient.incr(messageId);
+  const retryTimes = await redisClient.incr(messageId);
   const from = messageAttributes?.from?.stringValue || undefined;
 
-  console.log("threads.runs.create...nextNonce", nextNonce);
+  console.log("threads.runs.create...retryTimes", retryTimes);
   if (from === "telegram") {
     const {thread_id, assistant_id, token, chat_id} = JSON.parse(body);
     try {
@@ -63,7 +63,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
       await sqsClient.send(new ChangeMessageVisibilityCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
         ReceiptHandle: receiptHandle,
-        VisibilityTimeout: backOffSecond(nextNonce - 1),
+        VisibilityTimeout: backOffSecond(retryTimes - 1),
       }))
       throw new Error("threads.runs.create...failed to create run");
     }

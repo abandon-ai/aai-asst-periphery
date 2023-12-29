@@ -8,9 +8,9 @@ import backOffSecond from "../../utils/backOffSecond";
 const Threads_messages_create = async (record: SQSRecord) => {
   const {messageAttributes, body, receiptHandle, messageId} = record;
   const from = messageAttributes?.from?.stringValue || undefined;
-  const nextNonce = await redisClient.incr(messageId);
+  const retryTimes = await redisClient.incr(messageId);
 
-  console.log("threads.messages.create...nextNonce", nextNonce);
+  console.log("threads.messages.create...retryTimes", retryTimes);
   if (from === "telegram") {
     // message is telegram's update data
     const {thread_id, message, assistant_id, chat_id, token} = JSON.parse(body);
@@ -46,10 +46,22 @@ const Threads_messages_create = async (record: SQSRecord) => {
         }),
       )
     } catch (e) {
+      if (retryTimes === 1) {
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: "post",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id,
+            text: "I got it. But I am busy now. I will reply to you after I finish dealing with it.",
+          }),
+        })
+      }
       await sqsClient.send(new ChangeMessageVisibilityCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
         ReceiptHandle: receiptHandle,
-        VisibilityTimeout: backOffSecond(nextNonce - 1),
+        VisibilityTimeout: backOffSecond(retryTimes - 1),
       }))
       throw `threads.messages.create...the thread is blocked now! ${thread_id}`
     }

@@ -8,9 +8,9 @@ import openai from "../../utils/openai";
 
 const Threads_runs_retrieve = async (record: SQSRecord) => {
   const {body, receiptHandle, messageId} = record;
-  const nextNonce = await redisClient.incr(messageId);
+  const retryTimes = await redisClient.incr(messageId);
 
-  console.log("threads.runs.retrieve...nextNonce", nextNonce);
+  console.log("threads.runs.retrieve...retryTimes", retryTimes);
   const {thread_id, run_id, assistant_id, token, chat_id} = JSON.parse(body);
   try {
     const {status, required_action, expires_at} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
@@ -33,7 +33,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
         await sqsClient.send(new ChangeMessageVisibilityCommand({
           QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
           ReceiptHandle: receiptHandle,
-          VisibilityTimeout: backOffSecond(nextNonce - 1),
+          VisibilityTimeout: backOffSecond(retryTimes - 1),
         }))
         throw new Error(`threads.runs.retrieve...${status}`);
       case "requires_action":
@@ -78,7 +78,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
     await sqsClient.send(new ChangeMessageVisibilityCommand({
       QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
       ReceiptHandle: receiptHandle,
-      VisibilityTimeout: backOffSecond(nextNonce - 1),
+      VisibilityTimeout: backOffSecond(retryTimes - 1),
     }))
     throw new Error("threads.runs.retrieve...failed");
   }
