@@ -31,6 +31,7 @@ const Threads_messages_create = async (record: SQSRecord) => {
             assistant_id,
             token,
             chat_id,
+            message,
           }),
           MessageAttributes: {
             intent: {
