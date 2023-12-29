@@ -90,6 +90,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
         MessageGroupId: `${assistant_id}-${thread_id}`,
       }),
     )
+    console.log("threads.messages.create...queued");
   } catch (_) {
     console.log("openai.beta.threads.messages.create error");
   }
