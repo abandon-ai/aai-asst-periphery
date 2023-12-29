@@ -22,6 +22,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
 
   // Check assistant_id
   const assistant_id = await redisClient.get(`ASST_ID#${token}`);
+  console.log("Query ASST_ID", assistant_id);
   if (!assistant_id) {
     return {
       statusCode: 200,
@@ -35,26 +36,28 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   let thread_id = await redisClient.get(
     `THREAD#${assistant_id}:${chat_id}`,
   );
+  console.log("Cached thread", thread_id);
 
   // Create new thread
   if (!thread_id || body?.message?.text?.trim() === "/start") {
     if (thread_id) {
       try {
         await openai.beta.threads.del(thread_id as string);
-        console.log("Delete threads", thread_id);
+        console.log("threads.del...success", thread_id);
       } catch (e) {
-        console.log("openai.beta.threads.del error", e);
+        console.log("threads.del...error", e);
       }
     }
     try {
       const { id } = await openai.beta.threads.create();
+      console.log("threads.create...success", id);
       thread_id = id;
       await redisClient.set(
         `THREAD#${assistant_id}:${chat_id}`,
         thread_id,
       );
     } catch (_) {
-      console.log("openai.beta.threads.create error");
+      console.log("threads.create...error");
       return {
         statusCode: 200,
         body: JSON.stringify({}),
