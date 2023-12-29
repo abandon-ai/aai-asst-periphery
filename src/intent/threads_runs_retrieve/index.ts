@@ -13,7 +13,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
   console.log("threads.runs.retrieve...retryTimes", retryTimes);
   const {thread_id, run_id, assistant_id, token, chat_id} = JSON.parse(body);
   try {
-    const {status, required_action, expires_at} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
+    const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
     console.log(status);
     switch (status) {
       case "queued":
@@ -37,7 +37,6 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
         }))
         throw new Error(`threads.runs.retrieve...${status}`);
       case "requires_action":
-        await redisClient.del(messageId);
         if (!required_action) {
           break;
         }
@@ -64,6 +63,9 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
         } catch (e) {
           console.log("threads.runs.retrieve...failed to submit tool outputs", e);
         }
+        redisClient.pipeline()
+          .del(messageId)
+          .del(`RUN#${thread_id}`);
         break;
       case "cancelling":
       case "completed":

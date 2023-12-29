@@ -17,47 +17,53 @@ const Threads_runs_create = async (record: SQSRecord) => {
   if (from === "telegram") {
     const {thread_id, assistant_id, token, chat_id} = JSON.parse(body);
     try {
-      const {id: run_id} = await openai.beta.threads.runs.create(thread_id, {
+      const {id: run_id, expires_at} = await openai.beta.threads.runs.create(thread_id, {
         assistant_id,
         additional_instructions: 'You are a telegram bot now. You will receive a update from telegram API. Then, you should send message to target chat.',
         tools: TelegramFunctions,
       });
-      await sqsClient.send(new SendMessageCommand({
-        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-        MessageBody: JSON.stringify({
-          thread_id,
-          run_id,
-          assistant_id,
-          token,
-          chat_id,
-        }),
-        MessageAttributes: {
-          intent: {
-            DataType: 'String',
-            StringValue: 'threads.runs.retrieve'
+      redisClient.pipeline()
+        .set(`RUN#${thread_id}`, run_id, {
+          exat: expires_at,
+        })
+        .del(messageId);
+      await Promise.all([
+        sqsClient.send(new SendMessageCommand({
+          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+          MessageBody: JSON.stringify({
+            thread_id,
+            run_id,
+            assistant_id,
+            token,
+            chat_id,
+          }),
+          MessageAttributes: {
+            intent: {
+              DataType: 'String',
+              StringValue: 'threads.runs.retrieve'
+            },
           },
-        },
-        MessageGroupId: `${assistant_id}-${thread_id}`,
-      }));
-      await ddbDocClient.send(new UpdateCommand({
-        TableName: "abandonai-prod",
-        Key: {
-          PK: `ASST#${assistant_id}`,
-          SK: `THREAD#${thread_id}`,
-        },
-        ExpressionAttributeNames: {
-          "#runs": "runs",
-          "#updated": "updated",
-        },
-        ExpressionAttributeValues: {
-          ":empty_list": [],
-          ":runs": [run_id],
-          ":updated": Math.floor(Date.now() / 1000),
-        },
-        UpdateExpression:
-          "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
-      }));
-      await redisClient.del(messageId);
+          MessageGroupId: `${assistant_id}-${thread_id}`,
+        })),
+        ddbDocClient.send(new UpdateCommand({
+          TableName: "abandonai-prod",
+          Key: {
+            PK: `ASST#${assistant_id}`,
+            SK: `THREAD#${thread_id}`,
+          },
+          ExpressionAttributeNames: {
+            "#runs": "runs",
+            "#updated": "updated",
+          },
+          ExpressionAttributeValues: {
+            ":empty_list": [],
+            ":runs": [run_id],
+            ":updated": Math.floor(Date.now() / 1000),
+          },
+          UpdateExpression:
+            "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
+        })),
+      ]);
       console.log("threads.runs.create...", run_id);
     } catch (e) {
       await sqsClient.send(new ChangeMessageVisibilityCommand({
