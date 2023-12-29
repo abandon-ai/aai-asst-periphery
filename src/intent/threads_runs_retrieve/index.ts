@@ -15,9 +15,6 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
   try {
     const {status, required_action, expires_at} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
     console.log(status);
-    await redisClient.set(`${assistant_id}:${thread_id}:run`, run_id, {
-      exat: expires_at,
-    });
     switch (status) {
       case "queued":
       case "in_progress":
@@ -40,7 +37,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
         }))
         throw new Error(`threads.runs.retrieve...${status}`);
       case "requires_action":
-        await redisClient.del(receiptHandle);
+        await redisClient.del(messageId);
         if (!required_action) {
           break;
         }

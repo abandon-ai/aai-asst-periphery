@@ -33,7 +33,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
 
   // Check thread, if not exist, create
   let thread_id = await redisClient.get(
-    `${assistant_id}:telegram:${chat_id}:thread_id`,
+    `THREAD#${assistant_id}:${chat_id}`,
   );
 
   // Create new thread
@@ -41,6 +41,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
     if (thread_id) {
       try {
         await openai.beta.threads.del(thread_id as string);
+        console.log("Delete threads", thread_id);
       } catch (e) {
         console.log("openai.beta.threads.del error", e);
       }
@@ -49,7 +50,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
       const { id } = await openai.beta.threads.create();
       thread_id = id;
       await redisClient.set(
-        `${assistant_id}:telegram:${chat_id}:thread_id`,
+        `THREAD#${assistant_id}:${chat_id}`,
         thread_id,
       );
     } catch (_) {
