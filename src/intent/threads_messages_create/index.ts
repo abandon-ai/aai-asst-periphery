@@ -15,11 +15,13 @@ const Threads_messages_create = async (record: SQSRecord) => {
     // message is telegram's update data
     const {thread_id, message, assistant_id, chat_id, token} = JSON.parse(body);
     try {
+      console.log("message", message);
       // If the thread is unlocked, then, you can run it.
       await openai.beta.threads.messages.create(thread_id as string, {
         role: "user",
         content: message,
       })
+      console.log("threads.messages.create...success from openai");
       // Queue to create a run of this thread.
       // When running, this thread will be blocked!
       // (When running) No more messages will be created, and no more runs.
@@ -46,6 +48,7 @@ const Threads_messages_create = async (record: SQSRecord) => {
           MessageGroupId: `${assistant_id}-${thread_id}`,
         }),
       )
+      console.log("threads.runs.create...queued");
     } catch (e) {
       if (retryTimes === 1) {
         try {
