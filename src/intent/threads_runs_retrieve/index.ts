@@ -10,11 +10,11 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
   const {body, receiptHandle, messageId} = record;
   const retryTimes = await redisClient.incr(messageId);
 
-  console.log("threads.runs.retrieve...retryTimes", retryTimes);
+  console.log("threads.runs.retrieve...retry times", retryTimes);
   const {thread_id, run_id, assistant_id, token, chat_id} = JSON.parse(body);
   try {
     const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
-    console.log("threads.runs.retrieve...success from openai", status);
+    console.log("threads.runs.retrieve...success", status);
     switch (status) {
       case "queued":
       case "in_progress":
@@ -77,7 +77,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
         break;
     }
   } catch (e) {
-    console.log("threads.runs.retrieve...Change Message Visibility", backOffSecond(retryTimes - 1));
+    console.log("threads.runs.retrieve...wait", backOffSecond(retryTimes - 1));
     await sqsClient.send(new ChangeMessageVisibilityCommand({
       QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
       ReceiptHandle: receiptHandle,

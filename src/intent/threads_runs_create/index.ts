@@ -13,9 +13,9 @@ const Threads_runs_create = async (record: SQSRecord) => {
   const retryTimes = await redisClient.incr(messageId);
   const from = messageAttributes?.from?.stringValue || undefined;
 
-  console.log("threads.runs.create...retryTimes", retryTimes);
+  console.log("threads.runs.create...retry times", retryTimes);
   if (from === "telegram") {
-    const {thread_id, assistant_id, token, chat_id, message} = JSON.parse(body);
+    const {thread_id, assistant_id, token, chat_id} = JSON.parse(body);
     try {
       const {id: run_id, expires_at} = await openai.beta.threads.runs.create(thread_id, {
         assistant_id,
@@ -68,13 +68,13 @@ const Threads_runs_create = async (record: SQSRecord) => {
       ])
       console.log("threads.runs.retrieve...queued");
     } catch (e) {
-      console.log("threads.runs.create...Change Message Visibility", backOffSecond(retryTimes - 1));
+      console.log("threads.runs.create...wait", backOffSecond(retryTimes - 1));
       await sqsClient.send(new ChangeMessageVisibilityCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
         ReceiptHandle: receiptHandle,
         VisibilityTimeout: backOffSecond(retryTimes - 1),
       }))
-      throw new Error("threads.runs.create...failed to create run");
+      throw new Error("threads.runs.create...failed");
     }
   } else {
     console.log("threads.runs.create...from error", from);
