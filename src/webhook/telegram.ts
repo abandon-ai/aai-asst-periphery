@@ -30,7 +30,6 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   }
 
   const chat_id = body?.message?.chat?.id;
-  const update_id = body?.update_id;
 
   // Check thread, if not exist, create
   let thread_id = await redisClient.get(
