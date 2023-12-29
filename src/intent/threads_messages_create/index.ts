@@ -51,20 +51,18 @@ const Threads_messages_create = async (record: SQSRecord) => {
       console.log("threads.runs.create...queued");
     } catch (e) {
       if (retryTimes === 1) {
-        try {
-          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: "post",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              chat_id,
-              text: "Wait for a second!",
-            }),
-          })
-        } catch (e) {
-          console.log(e)
-        }
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "post",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id,
+            text: "Wait for a second!",
+          }),
+        }).catch((e) => {
+          console.log("sendMessage...error", e);
+        })
       }
       console.log("threads.messages.create...wait", backOffSecond(retryTimes - 1))
       await sqsClient.send(new ChangeMessageVisibilityCommand({
