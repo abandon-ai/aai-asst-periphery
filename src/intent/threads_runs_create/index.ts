@@ -22,31 +22,33 @@ const Threads_runs_create = async (record: SQSRecord) => {
         additional_instructions: 'You are a telegram bot now. You will receive a update from telegram API. Then, you should send message to target chat.',
         tools: TelegramFunctions,
       });
+      console.log("threads.runs.create...success", run_id);
       redisClient.pipeline()
         .set(`RUN#${thread_id}`, run_id, {
           exat: expires_at,
         })
         .del(messageId);
-      await Promise.all([
-        sqsClient.send(new SendMessageCommand({
-          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-          MessageBody: JSON.stringify({
-            thread_id,
-            run_id,
-            assistant_id,
-            token,
-            chat_id,
-            message,
-          }),
-          MessageAttributes: {
-            intent: {
-              DataType: 'String',
-              StringValue: 'threads.runs.retrieve'
-            },
+      await sqsClient.send(new SendMessageCommand({
+        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+        MessageBody: JSON.stringify({
+          thread_id,
+          run_id,
+          assistant_id,
+          token,
+          chat_id,
+          message,
+        }),
+        MessageAttributes: {
+          intent: {
+            DataType: 'String',
+            StringValue: 'threads.runs.retrieve'
           },
-          MessageGroupId: `${assistant_id}-${thread_id}`,
-        })),
-        ddbDocClient.send(new UpdateCommand({
+        },
+        MessageGroupId: `${assistant_id}-${thread_id}`,
+      }))
+      console.log("threads.runs.retrieve...queued");
+      try {
+        await ddbDocClient.send(new UpdateCommand({
           TableName: "abandonai-prod",
           Key: {
             PK: `ASST#${assistant_id}`,
@@ -63,10 +65,12 @@ const Threads_runs_create = async (record: SQSRecord) => {
           },
           UpdateExpression:
             "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
-        })),
-      ]);
-      console.log("threads.runs.create...", run_id);
+        }))
+      } catch (e) {
+        console.log("ddbDocClient.send error", e);
+      }
     } catch (e) {
+      console.log("threads.runs.create...Change Message Visibility", backOffSecond(retryTimes - 1));
       await sqsClient.send(new ChangeMessageVisibilityCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
         ReceiptHandle: receiptHandle,

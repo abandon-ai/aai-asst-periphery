@@ -66,6 +66,7 @@ const Threads_messages_create = async (record: SQSRecord) => {
           console.log(e)
         }
       }
+      console.log("threads.messages.create...Change Message Visibility", backOffSecond(retryTimes - 1))
       await sqsClient.send(new ChangeMessageVisibilityCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
         ReceiptHandle: receiptHandle,
