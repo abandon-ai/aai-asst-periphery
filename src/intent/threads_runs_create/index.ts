@@ -15,7 +15,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
 
   console.log("threads.runs.create...nextNonce", nextNonce);
   if (from === "telegram") {
-    const {thread_id, assistant_id, update_id, token, chat_id} = JSON.parse(body);
+    const {thread_id, assistant_id, token, chat_id} = JSON.parse(body);
     try {
       const {id: run_id} = await openai.beta.threads.runs.create(thread_id, {
         assistant_id,
@@ -28,7 +28,6 @@ const Threads_runs_create = async (record: SQSRecord) => {
           thread_id,
           run_id,
           assistant_id,
-          update_id,
           token,
           chat_id,
         }),
