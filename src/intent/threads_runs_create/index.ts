@@ -37,7 +37,6 @@ const Threads_runs_create = async (record: SQSRecord) => {
             assistant_id,
             token,
             chat_id,
-            message,
             intent: "threads.runs.retrieve",
           }),
           MessageAttributes: {
