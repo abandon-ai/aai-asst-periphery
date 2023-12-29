@@ -72,6 +72,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
           token,
           chat_id,
           message: JSON.stringify(body),
+          intent: "threads.messages.create",
         }),
         MessageAttributes: {
           intent: {

@@ -28,27 +28,27 @@ const Threads_runs_create = async (record: SQSRecord) => {
           exat: expires_at,
         })
         .del(messageId);
-      await sqsClient.send(new SendMessageCommand({
-        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-        MessageBody: JSON.stringify({
-          thread_id,
-          run_id,
-          assistant_id,
-          token,
-          chat_id,
-          message,
-        }),
-        MessageAttributes: {
-          intent: {
-            DataType: 'String',
-            StringValue: 'threads.runs.retrieve'
+      await Promise.all([
+        sqsClient.send(new SendMessageCommand({
+          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+          MessageBody: JSON.stringify({
+            thread_id,
+            run_id,
+            assistant_id,
+            token,
+            chat_id,
+            message,
+            intent: "threads.runs.retrieve",
+          }),
+          MessageAttributes: {
+            intent: {
+              DataType: 'String',
+              StringValue: 'threads.runs.retrieve'
+            },
           },
-        },
-        MessageGroupId: `${assistant_id}-${thread_id}`,
-      }))
-      console.log("threads.runs.retrieve...queued");
-      try {
-        await ddbDocClient.send(new UpdateCommand({
+          MessageGroupId: `${assistant_id}-${thread_id}`,
+        })),
+        ddbDocClient.send(new UpdateCommand({
           TableName: "abandonai-prod",
           Key: {
             PK: `ASST#${assistant_id}`,
@@ -66,9 +66,8 @@ const Threads_runs_create = async (record: SQSRecord) => {
           UpdateExpression:
             "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
         }))
-      } catch (e) {
-        console.log("ddbDocClient.send error", e);
-      }
+      ])
+      console.log("threads.runs.retrieve...queued");
     } catch (e) {
       console.log("threads.runs.create...Change Message Visibility", backOffSecond(retryTimes - 1));
       await sqsClient.send(new ChangeMessageVisibilityCommand({
