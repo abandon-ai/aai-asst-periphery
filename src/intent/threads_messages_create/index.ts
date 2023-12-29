@@ -47,16 +47,20 @@ const Threads_messages_create = async (record: SQSRecord) => {
       )
     } catch (e) {
       if (retryTimes === 1) {
-        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: "post",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            chat_id,
-            text: "I got it. But I am busy now. I will reply to you after I finish dealing with it.",
-          }),
-        })
+        try {
+          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              chat_id,
+              text: "I got it. But I am busy now. I will reply to you after I finish dealing with it.",
+            }),
+          })
+        } catch (e) {
+          console.log(e)
+        }
       }
       await sqsClient.send(new ChangeMessageVisibilityCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
