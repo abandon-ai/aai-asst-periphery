@@ -13,7 +13,7 @@ const Threads_messages_create = async (record: SQSRecord) => {
   console.log("threads.messages.create...retry times", retryTimes);
   if (from === "telegram") {
     // message is telegram's update data
-    const {thread_id, message, assistant_id, chat_id, token} = JSON.parse(body);
+    const {thread_id, message, assistant_id, chat_id, token, update_id} = JSON.parse(body);
     try {
       // If the thread is unlocked, then, you can run it.
       await openai.beta.threads.messages.create(thread_id as string, {
@@ -24,31 +24,36 @@ const Threads_messages_create = async (record: SQSRecord) => {
       // Queue to create a run of this thread.
       // When running, this thread will be blocked!
       // (When running) No more messages will be created, and no more runs.
-      await sqsClient.send(
-        new SendMessageCommand({
-          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-          MessageBody: JSON.stringify({
-            thread_id,
-            assistant_id,
-            token,
-            chat_id,
-            message,
-            intent: "threads.runs.create",
+      const invokeRunsCreateUpdateId = await redisClient.get(`INVOKE_RUNS_CREATE#${assistant_id}:${thread_id}`) || 0;
+      if (update_id >= invokeRunsCreateUpdateId) {
+        await sqsClient.send(
+          new SendMessageCommand({
+            QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+            MessageBody: JSON.stringify({
+              thread_id,
+              assistant_id,
+              token,
+              chat_id,
+              message,
+              intent: "threads.runs.create",
+            }),
+            MessageAttributes: {
+              intent: {
+                StringValue: "threads.runs.create",
+                DataType: "String",
+              },
+              from: {
+                StringValue: from,
+                DataType: "String",
+              },
+            },
+            MessageGroupId: `${assistant_id}-${thread_id}`,
           }),
-          MessageAttributes: {
-            intent: {
-              StringValue: "threads.runs.create",
-              DataType: "String",
-            },
-            from: {
-              StringValue: from,
-              DataType: "String",
-            },
-          },
-          MessageGroupId: `${assistant_id}-${thread_id}`,
-        }),
-      )
-      console.log("threads.runs.create...queued");
+        )
+        console.log("threads.runs.create...queued");
+      } else {
+        console.log("threads.runs.create...wait more messages to invoke")
+      }
     } catch (e) {
       if (retryTimes === 1) {
         fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

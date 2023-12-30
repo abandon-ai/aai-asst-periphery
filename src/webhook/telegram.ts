@@ -66,6 +66,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   }
 
   try {
+    await redisClient.set(`INVOKE_RUNS_CREATE#${assistant_id}:${thread_id}`, body.update_id);
     await sqsClient.send(
       new SendMessageCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
@@ -74,6 +75,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
           assistant_id,
           token,
           chat_id,
+          update_id: body.update_id,
           message: JSON.stringify(body),
           intent: "threads.messages.create",
         }),
