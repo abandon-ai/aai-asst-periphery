@@ -19,6 +19,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
     try {
       const {id: run_id, expires_at} = await openai.beta.threads.runs.create(thread_id, {
         assistant_id,
+        model: "gpt-3.5-turbo-1106",
         additional_instructions: 'You are a telegram bot now. You will receive a update from telegram API. Then, you should send message to target chat.',
         tools: TelegramFunctions,
       });
