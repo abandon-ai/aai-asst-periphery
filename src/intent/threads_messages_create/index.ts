@@ -28,7 +28,7 @@ const Threads_messages_create = async (record: SQSRecord) => {
         ReceiptHandle: receiptHandle,
         VisibilityTimeout: Math.floor(reset / 1000) + 1,
       }))
-      throw new Error(`Rate limit exceeded for ${assistant_id}:${thread_id}:${chat_id}, limit: ${limit}, remaining: ${remaining}, reset: ${reset}`);
+      throw new Error(`threads.runs.create...Rate limit exceeded for ${assistant_id}:${thread_id}:${chat_id}, limit: ${limit}, remaining: ${remaining}, reset: ${reset}`);
     }
     try {
       // If the thread is unlocked, then, you can run it.
