@@ -4,6 +4,8 @@ import openai from "../../utils/openai";
 import sqsClient from "../../utils/sqsClient";
 import {ChangeMessageVisibilityCommand, SendMessageCommand} from "@aws-sdk/client-sqs";
 import backOffSecond from "../../utils/backOffSecond";
+import { Ratelimit } from "@upstash/ratelimit";
+import RedisClient from "../../utils/redisClient";
 
 const Threads_messages_create = async (record: SQSRecord) => {
   const {messageAttributes, body, receiptHandle, messageId} = record;
@@ -14,6 +16,20 @@ const Threads_messages_create = async (record: SQSRecord) => {
   if (from === "telegram") {
     // message is telegram's update data
     const {thread_id, message, assistant_id, chat_id, token, update_id} = JSON.parse(body);
+    const ratelimit = new Ratelimit({
+      redis: RedisClient,
+      limiter: Ratelimit.slidingWindow(10, "5 m"),
+      prefix: "threads/messages/create/ratelimit",
+    });
+    const { success, limit, remaining, reset } = await ratelimit.limit(`${assistant_id}:${thread_id}:${chat_id}`);
+    if (!success) {
+      await sqsClient.send(new ChangeMessageVisibilityCommand({
+        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+        ReceiptHandle: receiptHandle,
+        VisibilityTimeout: Math.floor(reset / 1000) + 1,
+      }))
+      throw new Error(`Rate limit exceeded for ${assistant_id}:${thread_id}:${chat_id}, limit: ${limit}, remaining: ${remaining}, reset: ${reset}`);
+    }
     try {
       // If the thread is unlocked, then, you can run it.
       await openai.beta.threads.messages.create(thread_id as string, {
