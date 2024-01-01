@@ -40,14 +40,6 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
 
   // Create new thread
   if (!thread_id || body?.message?.text?.trim() === "/start") {
-    if (thread_id) {
-      try {
-        await openai.beta.threads.del(thread_id as string);
-        console.log("threads.del...success", thread_id);
-      } catch (e) {
-        console.log("threads.del...error", e);
-      }
-    }
     try {
       const { id } = await openai.beta.threads.create();
       console.log("threads.create...success", id);
