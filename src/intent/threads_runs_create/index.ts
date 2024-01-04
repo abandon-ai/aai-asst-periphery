@@ -25,7 +25,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
       });
       console.log("threads.runs.create...success", run_id);
       redisClient.pipeline()
-        .set(`RUN#${thread_id}`, run_id, {
+        .set(`RUN#${run_id}`, run_id, {
           exat: expires_at,
         })
         .del(messageId);
