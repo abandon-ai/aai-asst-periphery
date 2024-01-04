@@ -35,6 +35,10 @@ const Threads_messages_create = async (record: SQSRecord) => {
       await openai.beta.threads.messages.create(thread_id as string, {
         role: "user",
         content: message,
+        metadata: {
+          'Content-Type': 'application/json',
+          'Type': 'telegram/update',
+        }
       })
       console.log("threads.messages.create...success");
       // Queue to create a run of this thread.
