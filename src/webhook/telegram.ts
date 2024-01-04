@@ -53,7 +53,13 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   // Create new thread
   if (!thread_id || body?.message?.text?.trim() === "/start") {
     try {
-      const { id } = await openai.beta.threads.create();
+      const { id } = await openai.beta.threads.create({
+        metadata: {
+          platform: "telegram",
+          chat: body?.message?.chat,
+          created: body?.message?.date,
+        }
+      });
       console.log("threads.create...success", id);
       thread_id = id;
       await redisClient.set(
