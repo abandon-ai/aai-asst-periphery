@@ -20,22 +20,27 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
     }
   }
 
-  const [moderation, assistant_id] = await Promise.all([
-    openai.moderations.create({
-      input: body?.message?.text,
-    }),
-    redisClient.get(`ASST_ID#${token}`)
-  ])
+  const moderation = await openai.moderations.create({
+    input: body?.message?.text,
+  })
 
-  if (moderation.results[0].flagged || !assistant_id) {
+  if (moderation.results[0].flagged) {
     console.log("moderation.data.results[0].flagged", moderation.results[0].flagged);
     return {
       statusCode: 200,
       body: JSON.stringify({}),
     }
   }
+
   // Check assistant_id
+  const assistant_id = await redisClient.get(`ASST_ID#${token}`);
   console.log("Query ASST_ID", assistant_id);
+  if (!assistant_id) {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({}),
+    }
+  }
 
   const chat_id = body?.message?.chat?.id;
 
@@ -48,15 +53,13 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   // Create new thread
   if (!thread_id || body?.message?.text?.trim() === "/start") {
     try {
-      const [id, _] = await Promise.all([
-        openai.beta.threads.create(),
-        redisClient.set(
-          `THREAD#${assistant_id}:${chat_id}`,
-          thread_id,
-        )
-      ])
+      const { id } = await openai.beta.threads.create();
       console.log("threads.create...success", id);
       thread_id = id;
+      await redisClient.set(
+        `THREAD#${assistant_id}:${chat_id}`,
+        thread_id,
+      );
     } catch (_) {
       console.log("threads.create...error");
       return {
@@ -67,34 +70,32 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   }
 
   try {
-    await Promise.all([
-      redisClient.set(`INVOKE_RUNS_CREATE#${assistant_id}:${thread_id}`, body.update_id),
-      sqsClient.send(
-        new SendMessageCommand({
-          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-          MessageBody: JSON.stringify({
-            thread_id,
-            assistant_id,
-            token,
-            chat_id,
-            update_id: body.update_id,
-            message: JSON.stringify(body),
-            intent: "threads.messages.create",
-          }),
-          MessageAttributes: {
-            intent: {
-              StringValue: "threads.messages.create",
-              DataType: "String",
-            },
-            from: {
-              StringValue: "telegram",
-              DataType: "String",
-            },
-          },
-          MessageGroupId: `${assistant_id}-${thread_id}`,
+    await redisClient.set(`INVOKE_RUNS_CREATE#${assistant_id}:${thread_id}`, body.update_id);
+    await sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+        MessageBody: JSON.stringify({
+          thread_id,
+          assistant_id,
+          token,
+          chat_id,
+          update_id: body.update_id,
+          message: JSON.stringify(body),
+          intent: "threads.messages.create",
         }),
-      )
-    ])
+        MessageAttributes: {
+          intent: {
+            StringValue: "threads.messages.create",
+            DataType: "String",
+          },
+          from: {
+            StringValue: "telegram",
+            DataType: "String",
+          },
+        },
+        MessageGroupId: `${assistant_id}-${thread_id}`,
+      }),
+    )
     console.log("threads.messages.create...queued");
   } catch (_) {
     console.log("openai.beta.threads.messages.create error");
