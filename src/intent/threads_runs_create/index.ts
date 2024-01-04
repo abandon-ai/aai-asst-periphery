@@ -53,8 +53,8 @@ const Threads_runs_create = async (record: SQSRecord) => {
           TableName: "abandonai-prod",
           Item: {
             PK: `ASST#${assistant_id}`,
-            SK: `RUN#${thread_id}`,
-            thread_id,
+            SK: `THREAD#${thread_id}`,
+            last_run: run_id,
             updated: Math.floor(Date.now() / 1000),
             TTL: 365 * 24 * 60 * 60,
           },
