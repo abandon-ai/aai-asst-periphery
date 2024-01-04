@@ -89,7 +89,7 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
       }
     }
     try {
-      const res = await fetch(`https://api.telegram.org/bot${telegram}/sendMessage`, {
+      await fetch(`https://api.telegram.org/bot${telegram}/sendMessage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -105,7 +105,14 @@ export const sendMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
       }).then((res) => res.json());
       return {
         tool_call_id: toolCall.id,
-        output: JSON.stringify(res),
+        output: JSON.stringify({
+          chat_id,
+          message_thread_id,
+          text,
+          parse_mode,
+          reply_to_message_id,
+          reply_markup,
+        }),
       }
     } catch (e) {
       console.log("Failed to sendMessage.", e);
