@@ -61,7 +61,7 @@ export const forwardMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCa
       }
     }
     try {
-      const functionResponse = await fetch(`https://api.telegram.org/bot${telegram}/forwardMessage`, {
+      await fetch(`https://api.telegram.org/bot${telegram}/forwardMessage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -75,7 +75,12 @@ export const forwardMessageHandler: (toolCall: Runs.RequiredActionFunctionToolCa
       }).then((res) => res.json());
       return {
         tool_call_id: toolCall.id,
-        output: functionResponse,
+        output: JSON.stringify({
+          chat_id,
+          message_thread_id,
+          from_chat_id,
+          message_id,
+        }),
       }
     } catch (e) {
       console.error(e);

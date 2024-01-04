@@ -74,7 +74,7 @@ export const sendDiceHandler: (toolCall: Runs.RequiredActionFunctionToolCall, as
       }
     }
     try {
-      const functionResponse = await fetch(`https://api.telegram.org/bot${telegram}/sendDice`, {
+      await fetch(`https://api.telegram.org/bot${telegram}/sendDice`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -89,7 +89,13 @@ export const sendDiceHandler: (toolCall: Runs.RequiredActionFunctionToolCall, as
       }).then((res) => res.json());
       return {
         tool_call_id: toolCall.id,
-        output: functionResponse,
+        output: JSON.stringify({
+          user_id,
+          offset,
+          limit,
+          reply_to_message_id,
+          reply_markup
+        }),
       }
     } catch (e) {
       console.error(e);

@@ -79,7 +79,7 @@ export const sendStickerHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
       }
     }
     try {
-      const functionResponse = await fetch(`https://api.telegram.org/bot${telegram}/sendSticker`, {
+      await fetch(`https://api.telegram.org/bot${telegram}/sendSticker`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -95,7 +95,14 @@ export const sendStickerHandler: (toolCall: Runs.RequiredActionFunctionToolCall,
       }).then((res) => res.json());
       return {
         tool_call_id: toolCall.id,
-        output: functionResponse,
+        output: JSON.stringify({
+          chat_id,
+          message_thread_id,
+          sticker,
+          emoji,
+          reply_to_message_id,
+          reply_markup
+        }),
       }
     } catch (e) {
       console.error(e);
