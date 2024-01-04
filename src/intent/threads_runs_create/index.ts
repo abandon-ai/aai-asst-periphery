@@ -2,7 +2,7 @@ import {TelegramFunctions} from "../../tools/telegram";
 import sqsClient from "../../utils/sqsClient";
 import {ChangeMessageVisibilityCommand, SendMessageCommand} from "@aws-sdk/client-sqs";
 import ddbDocClient from "../../utils/ddbDocClient";
-import {PutCommand, UpdateCommand} from "@aws-sdk/lib-dynamodb";
+import {PutCommand} from "@aws-sdk/lib-dynamodb";
 import redisClient from "../../utils/redisClient";
 import backOffSecond from "../../utils/backOffSecond";
 import {SQSRecord} from "aws-lambda";
