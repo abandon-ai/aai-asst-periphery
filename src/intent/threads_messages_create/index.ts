@@ -36,8 +36,7 @@ const Threads_messages_create = async (record: SQSRecord) => {
         role: "user",
         content: message,
         metadata: {
-          'Content-Type': 'application/json',
-          'Type': 'telegram/update',
+          object: 'telegram.update',
         }
       })
       console.log("threads.messages.create...success");
