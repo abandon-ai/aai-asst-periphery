@@ -2,7 +2,7 @@ import {TelegramFunctions} from "../../tools/telegram";
 import sqsClient from "../../utils/sqsClient";
 import {ChangeMessageVisibilityCommand, SendMessageCommand} from "@aws-sdk/client-sqs";
 import ddbDocClient from "../../utils/ddbDocClient";
-import {UpdateCommand} from "@aws-sdk/lib-dynamodb";
+import {PutCommand, UpdateCommand} from "@aws-sdk/lib-dynamodb";
 import redisClient from "../../utils/redisClient";
 import backOffSecond from "../../utils/backOffSecond";
 import {SQSRecord} from "aws-lambda";
@@ -49,23 +49,14 @@ const Threads_runs_create = async (record: SQSRecord) => {
           },
           MessageGroupId: `${assistant_id}-${thread_id}`,
         })),
-        ddbDocClient.send(new UpdateCommand({
+        ddbDocClient.send(new PutCommand({
           TableName: "abandonai-prod",
-          Key: {
+          Item: {
             PK: `ASST#${assistant_id}`,
-            SK: `THREAD#${thread_id}`,
+            SK: `RUN#${thread_id}`,
+            updated: Math.floor(Date.now() / 1000),
+            TTL: 365 * 24 * 60 * 60,
           },
-          ExpressionAttributeNames: {
-            "#runs": "runs",
-            "#updated": "updated",
-          },
-          ExpressionAttributeValues: {
-            ":empty_list": [],
-            ":runs": [run_id],
-            ":updated": Math.floor(Date.now() / 1000),
-          },
-          UpdateExpression:
-            "SET #runs = list_append(if_not_exists(#runs, :empty_list), :runs), #updated = :updated",
         }))
       ])
       console.log("threads.runs.retrieve...queued");
