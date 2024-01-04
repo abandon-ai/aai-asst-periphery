@@ -54,6 +54,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
           Item: {
             PK: `ASST#${assistant_id}`,
             SK: `RUN#${thread_id}`,
+            thread_id,
             updated: Math.floor(Date.now() / 1000),
             TTL: 365 * 24 * 60 * 60,
           },
