@@ -20,6 +20,18 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
     }
   }
 
+  const moderation = await openai.moderations.create({
+    input: body?.message?.text,
+  })
+
+  if (moderation.results[0].flagged) {
+    console.log("moderation.data.results[0].flagged", moderation.results[0].flagged);
+    return {
+      statusCode: 200,
+      body: JSON.stringify({}),
+    }
+  }
+
   // Check assistant_id
   const assistant_id = await redisClient.get(`ASST_ID#${token}`);
   console.log("Query ASST_ID", assistant_id);
