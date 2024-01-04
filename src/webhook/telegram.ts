@@ -58,6 +58,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
           platform: "telegram",
           chat: body?.message?.chat,
           created: body?.message?.date,
+          token: token,
         }
       });
       console.log("threads.create...success", id);
