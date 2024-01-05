@@ -56,7 +56,9 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
       const { id } = await openai.beta.threads.create({
         metadata: {
           platform: "telegram",
-          chat: JSON.stringify(body?.message?.chat),
+          chat_id: body?.message?.chat?.id,
+          username: body?.message?.chat?.username,
+          type: body?.message?.chat?.type,
         }
       });
       console.log("threads.create...success", id);
