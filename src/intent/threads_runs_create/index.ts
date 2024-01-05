@@ -53,7 +53,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
           TableName: "abandonai-prod",
           Item: {
             PK: `ASST#${assistant_id}`,
-            SK: `THREAD_LOG#${thread_id}`,
+            SK: `THREAD_RUN#${thread_id}`,
             status: 'completed',
             message,
             updated: Math.floor(Date.now() / 1000),
@@ -74,7 +74,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
           TableName: "abandonai-prod",
           Item: {
             PK: `ASST#${assistant_id}`,
-            SK: `THREAD_LOG#${thread_id}`,
+            SK: `THREAD_RUN#${thread_id}`,
             status: 'queued',
             message,
             updated: Math.floor(Date.now() / 1000),
