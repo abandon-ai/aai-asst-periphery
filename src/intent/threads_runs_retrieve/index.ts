@@ -5,6 +5,8 @@ import backOffSecond from "../../utils/backOffSecond";
 import {functionHandlerMap} from "../../tools/telegram";
 import {SQSRecord} from "aws-lambda";
 import openai from "../../utils/openai";
+import ddbDocClient from "../../utils/ddbDocClient";
+import {PutCommand} from "@aws-sdk/lib-dynamodb";
 
 const Threads_runs_retrieve = async (record: SQSRecord) => {
   const {body, receiptHandle, messageId} = record;
@@ -15,6 +17,16 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
   try {
     const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
     console.log("threads.runs.retrieve...success", status);
+    await ddbDocClient.send(new PutCommand({
+      TableName: "abandonai-prod",
+      Item: {
+        PK: `ASST#${assistant_id}`,
+        SK: `THREAD_LOG#${thread_id}`,
+        status: status,
+        updated: Math.floor(Date.now() / 1000),
+        TTL: 365 * 24 * 60 * 60,
+      },
+    }));
     switch (status) {
       case "queued":
       case "in_progress":
@@ -34,7 +46,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
           QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
           ReceiptHandle: receiptHandle,
           VisibilityTimeout: backOffSecond(retryTimes - 1),
-        }))
+        }));
         throw new Error(`threads.runs.retrieve...${status}`);
       case "requires_action":
         if (!required_action) {
@@ -56,16 +68,25 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
           const random = Math.floor((Math.random() + 1) * 1000);
           await new Promise((resolve) => setTimeout(resolve, random));
         }
-        try {
-          openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
-            tool_outputs,
-          });
-        } catch (e) {
+        openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
+          tool_outputs,
+        }).catch((e) => {
           console.log("threads.runs.retrieve...failed to submit tool outputs", e);
-        }
-        redisClient.pipeline()
-          .del(messageId)
-          .del(`RUN#${thread_id}`);
+        });
+        await Promise.all([
+          ddbDocClient.send(new PutCommand({
+            TableName: "abandonai-prod",
+            Item: {
+              PK: `ASST#${assistant_id}`,
+              SK: `THREAD_LOG#${thread_id}`,
+              status: 'completed',
+              updated: Math.floor(Date.now() / 1000),
+              TTL: 365 * 24 * 60 * 60,
+            },
+          })),
+          redisClient.del(messageId),
+          redisClient.del(`RUN#${thread_id}`),
+        ]);
         break;
       case "cancelling":
       case "completed":

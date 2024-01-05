@@ -54,7 +54,7 @@ const Threads_runs_create = async (record: SQSRecord) => {
           Item: {
             PK: `ASST#${assistant_id}`,
             SK: `THREAD_LOG#${thread_id}`,
-            last_run: run_id,
+            status: 'completed',
             updated: Math.floor(Date.now() / 1000),
             TTL: 365 * 24 * 60 * 60,
           },
@@ -63,11 +63,23 @@ const Threads_runs_create = async (record: SQSRecord) => {
       console.log("threads.runs.retrieve...queued");
     } catch (e) {
       console.log("threads.runs.create...wait", backOffSecond(retryTimes - 1));
-      await sqsClient.send(new ChangeMessageVisibilityCommand({
-        QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
-        ReceiptHandle: receiptHandle,
-        VisibilityTimeout: backOffSecond(retryTimes - 1),
-      }))
+      await Promise.all([
+        sqsClient.send(new ChangeMessageVisibilityCommand({
+          QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
+          ReceiptHandle: receiptHandle,
+          VisibilityTimeout: backOffSecond(retryTimes - 1),
+        })),
+        ddbDocClient.send(new PutCommand({
+          TableName: "abandonai-prod",
+          Item: {
+            PK: `ASST#${assistant_id}`,
+            SK: `THREAD_LOG#${thread_id}`,
+            status: 'queued',
+            updated: Math.floor(Date.now() / 1000),
+            TTL: 365 * 24 * 60 * 60,
+          },
+        }))
+      ])
       throw new Error("threads.runs.create...failed");
     }
   } else {
