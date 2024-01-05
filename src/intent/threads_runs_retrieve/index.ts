@@ -13,7 +13,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
   const retryTimes = await redisClient.incr(messageId);
 
   console.log("threads.runs.retrieve...retry times", retryTimes);
-  const {thread_id, run_id, assistant_id, token, chat_id} = JSON.parse(body);
+  const {thread_id, run_id, assistant_id, token, chat_id, message} = JSON.parse(body);
   try {
     const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
     console.log("threads.runs.retrieve...success", status);
@@ -23,6 +23,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
         PK: `ASST#${assistant_id}`,
         SK: `THREAD_LOG#${thread_id}`,
         status: status,
+        message,
         updated: Math.floor(Date.now() / 1000),
         TTL: 365 * 24 * 60 * 60,
       },
@@ -80,6 +81,7 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
               PK: `ASST#${assistant_id}`,
               SK: `THREAD_LOG#${thread_id}`,
               status: 'completed',
+              message,
               updated: Math.floor(Date.now() / 1000),
               TTL: 365 * 24 * 60 * 60,
             },
