@@ -57,7 +57,6 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
         metadata: {
           platform: "telegram",
           chat: JSON.stringify(body?.message?.chat),
-          token: token,
         }
       });
       console.log("threads.create...success", id);
