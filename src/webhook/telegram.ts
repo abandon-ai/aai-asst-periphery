@@ -56,8 +56,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
       const { id } = await openai.beta.threads.create({
         metadata: {
           platform: "telegram",
-          chat: body?.message?.chat,
-          created: body?.message?.date,
+          chat: JSON.stringify(body?.message?.chat),
           token: token,
         }
       });
@@ -67,8 +66,9 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
         `THREAD#${assistant_id}:${chat_id}`,
         thread_id,
       );
-    } catch (_) {
+    } catch (e) {
       console.log("threads.create...error");
+      console.log(e);
       return {
         statusCode: 200,
         body: JSON.stringify({}),
