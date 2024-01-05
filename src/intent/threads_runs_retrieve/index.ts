@@ -17,17 +17,6 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
   try {
     const {status, required_action} = await openai.beta.threads.runs.retrieve(thread_id, run_id);
     console.log("threads.runs.retrieve...success", status);
-    await ddbDocClient.send(new PutCommand({
-      TableName: "abandonai-prod",
-      Item: {
-        PK: `ASST#${assistant_id}`,
-        SK: `THREAD_RUN#${thread_id}`,
-        status: status,
-        message,
-        updated: Math.floor(Date.now() / 1000),
-        TTL: 365 * 24 * 60 * 60,
-      },
-    }));
     switch (status) {
       case "queued":
       case "in_progress":
@@ -74,21 +63,8 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
         }).catch((e) => {
           console.log("threads.runs.retrieve...failed to submit tool outputs", e);
         });
-        await Promise.all([
-          ddbDocClient.send(new PutCommand({
-            TableName: "abandonai-prod",
-            Item: {
-              PK: `ASST#${assistant_id}`,
-              SK: `THREAD_RUN#${thread_id}`,
-              status: 'completed',
-              message,
-              updated: Math.floor(Date.now() / 1000),
-              TTL: 365 * 24 * 60 * 60,
-            },
-          })),
-          redisClient.del(messageId),
-          redisClient.del(`RUN#${thread_id}`),
-        ]);
+        await redisClient.del(messageId);
+        await redisClient.del(`RUN#${thread_id}`);
         break;
       case "cancelling":
       case "completed":
