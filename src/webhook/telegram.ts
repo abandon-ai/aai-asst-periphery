@@ -10,7 +10,8 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
 
 // do not process groups, bots and old messages(24h)
   if (
-    body?.message?.date < Math.floor(new Date().getTime() / 1000) - 24 * 60 * 60
+    body?.message?.date < Math.floor(new Date().getTime() / 1000) - 24 * 60 * 60 ||
+    !body?.message?.text
   ) {
     return {
       statusCode: 200,
