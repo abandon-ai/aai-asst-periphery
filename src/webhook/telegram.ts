@@ -10,8 +10,6 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
 
 // do not process groups, bots and old messages(24h)
   if (
-    body?.message?.chat?.id < 0 ||
-    body?.message?.from?.is_bot ||
     body?.message?.date < Math.floor(new Date().getTime() / 1000) - 24 * 60 * 60
   ) {
     return {
