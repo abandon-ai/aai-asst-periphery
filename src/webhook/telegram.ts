@@ -21,7 +21,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   }
 
   const moderation = await openai.moderations.create({
-    input: body?.message?.text,
+    input: JSON.stringify(body?.message),
   })
 
   if (moderation.results[0].flagged) {
@@ -57,7 +57,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
         metadata: {
           platform: "telegram",
           chat_id: body?.message?.chat?.id,
-          username: body?.message?.chat?.username,
+          title: body?.message?.chat?.id > 0 ? body?.message?.chat?.username : body?.message?.chat?.title,
           type: body?.message?.chat?.type,
         }
       });
