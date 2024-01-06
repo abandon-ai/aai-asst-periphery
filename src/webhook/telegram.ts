@@ -10,8 +10,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
 
 // do not process groups, bots and old messages(24h)
   if (
-    body?.message?.date < Math.floor(new Date().getTime() / 1000) - 24 * 60 * 60 ||
-    !body?.message?.text
+    body?.message?.date < Math.floor(new Date().getTime() / 1000) - 24 * 60 * 60
   ) {
     return {
       statusCode: 200,
@@ -19,15 +18,17 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
     }
   }
 
-  const moderation = await openai.moderations.create({
-    input: body?.message?.text || "NaN",
-  })
+  if (body?.message?.text) {
+    const moderation = await openai.moderations.create({
+      input: body?.message?.text || "NaN",
+    })
 
-  if (moderation.results[0].flagged) {
-    console.log("moderation.data.results[0].flagged", moderation.results[0].flagged);
-    return {
-      statusCode: 200,
-      body: JSON.stringify({}),
+    if (moderation.results[0].flagged) {
+      console.log("moderation.data.results[0].flagged", moderation.results[0].flagged);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({}),
+      }
     }
   }
 
