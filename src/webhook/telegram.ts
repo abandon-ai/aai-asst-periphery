@@ -50,12 +50,12 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   console.log("Cached thread", thread_id);
 
   // Create new thread
-  if (!thread_id || body?.message?.text?.trim() === "/start") {
+  if (!thread_id) {
     try {
       const { id } = await openai.beta.threads.create({
         metadata: {
           platform: "telegram",
-          chat_id: body?.message?.chat?.id,
+          chat_id,
           title: body?.message?.chat?.id > 0 ? body?.message?.chat?.username : body?.message?.chat?.title,
           type: body?.message?.chat?.type,
         }
