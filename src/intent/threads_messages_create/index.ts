@@ -21,14 +21,14 @@ const Threads_messages_create = async (record: SQSRecord) => {
       limiter: Ratelimit.slidingWindow(10, "5 m"),
       prefix: "threads/messages/create/ratelimit",
     });
-    const { success, limit, remaining, reset } = await ratelimit.limit(`${assistant_id}:${thread_id}:${chat_id}`);
+    const { success, limit, remaining, reset } = await ratelimit.limit(`${thread_id}`);
     if (!success) {
       await sqsClient.send(new ChangeMessageVisibilityCommand({
         QueueUrl: process.env.AI_ASST_SQS_FIFO_URL,
         ReceiptHandle: receiptHandle,
         VisibilityTimeout: Math.floor(reset / 1000) + 1,
       }))
-      throw new Error(`threads.runs.create...Rate limit exceeded for ${assistant_id}:${thread_id}:${chat_id}, limit: ${limit}, remaining: ${remaining}, reset: ${reset}`);
+      throw new Error(`threads.runs.create...Rate limit exceeded for ${thread_id}, limit: ${limit}, remaining: ${remaining}, reset: ${reset}`);
     }
     try {
       // If the thread is unlocked, then, you can run it.
@@ -43,7 +43,7 @@ const Threads_messages_create = async (record: SQSRecord) => {
       // Queue to create a run of this thread.
       // When running, this thread will be blocked!
       // (When running) No more messages will be created, and no more runs.
-      const invokeRunsCreateUpdateId = await redisClient.get(`INVOKE_RUNS_CREATE#${assistant_id}:${thread_id}`) || 0;
+      const invokeRunsCreateUpdateId = await redisClient.get(`INVOKE_RUNS_CREATE#${thread_id}`) || 0;
       if (update_id >= invokeRunsCreateUpdateId) {
         await sqsClient.send(
           new SendMessageCommand({
