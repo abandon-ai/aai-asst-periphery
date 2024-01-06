@@ -8,6 +8,8 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   const body = JSON.parse(event?.body || '{}');
   const token = event.pathParameters?.proxy || undefined;
 
+  console.log(body);
+
 // do not process groups, bots and old messages(24h)
   if (
     body?.message?.date < Math.floor(new Date().getTime() / 1000) - 24 * 60 * 60 ||
