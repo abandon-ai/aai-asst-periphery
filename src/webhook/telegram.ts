@@ -8,12 +8,13 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
   const body = JSON.parse(event?.body || '{}');
   const token = event.pathParameters?.proxy || undefined;
 
-  console.log(body);
+  const chat_id = body?.message?.chat?.id;
 
 // do not process groups, bots and old messages(24h)
   if (
     body?.message?.date < Math.floor(new Date().getTime() / 1000) - 24 * 60 * 60 ||
-    !body?.message?.text
+    !body?.message?.text ||
+    chat_id < 0
   ) {
     return {
       statusCode: 200,
@@ -44,8 +45,6 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
       body: JSON.stringify({}),
     }
   }
-
-  const chat_id = body?.message?.chat?.id;
 
   // Check thread, if not exist, create
   let thread_id = await redisClient.get(
