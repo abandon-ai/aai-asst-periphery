@@ -58,13 +58,15 @@ const Threads_runs_retrieve = async (record: SQSRecord) => {
           const random = Math.floor((Math.random() + 1) * 1000);
           await new Promise((resolve) => setTimeout(resolve, random));
         }
-        openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
-          tool_outputs,
-        }).catch((e) => {
-          console.log("threads.runs.retrieve...failed to submit tool outputs", e);
-        });
-        await redisClient.del(messageId);
-        await redisClient.del(`RUN#${thread_id}`);
+        if (tool_outputs.length > 0) {
+          openai.beta.threads.runs.submitToolOutputs(thread_id, run_id, {
+            tool_outputs,
+          }).catch((e) => {
+            console.log("threads.runs.retrieve...failed to submit tool outputs", e);
+          });
+          await redisClient.del(messageId);
+          await redisClient.del(`RUN#${thread_id}`);
+        }
         break;
       case "cancelling":
       case "completed":
