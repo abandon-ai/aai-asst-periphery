@@ -68,6 +68,9 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
       await redisClient.set(
         `THREAD#${assistant_id}:${chat_id}`,
         thread_id,
+        {
+          ex: 24 * 60 * 60,
+        }
       );
     } catch (e) {
       console.log("threads.create...error");
