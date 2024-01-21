@@ -69,7 +69,7 @@ export const handler: Handler = async (event: APIGatewayEvent, context) => {
         `THREAD#${assistant_id}:${chat_id}`,
         thread_id,
         {
-          ex: 24 * 60 * 60,
+          ex: 3 * 60 * 60,
         }
       );
     } catch (e) {
