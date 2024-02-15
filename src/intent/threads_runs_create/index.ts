@@ -1,8 +1,6 @@
 import {TelegramFunctions} from "../../tools/telegram";
 import sqsClient from "../../utils/sqsClient";
 import {ChangeMessageVisibilityCommand, SendMessageCommand} from "@aws-sdk/client-sqs";
-import ddbDocClient from "../../utils/ddbDocClient";
-import {PutCommand} from "@aws-sdk/lib-dynamodb";
 import redisClient from "../../utils/redisClient";
 import backOffSecond from "../../utils/backOffSecond";
 import {SQSRecord} from "aws-lambda";
@@ -49,16 +47,6 @@ const Threads_runs_create = async (record: SQSRecord) => {
           },
           MessageGroupId: `${assistant_id}-${thread_id}`,
         })),
-        ddbDocClient.send(new PutCommand({
-          TableName: "abandonai-prod",
-          Item: {
-            PK: `ASST#${assistant_id}`,
-            SK: `THREAD_RUN#${thread_id}`,
-            message,
-            updated: Math.floor(Date.now() / 1000),
-            TTL: 365 * 24 * 60 * 60,
-          },
-        }))
       ])
       console.log("threads.runs.retrieve...queued");
     } catch (e) {

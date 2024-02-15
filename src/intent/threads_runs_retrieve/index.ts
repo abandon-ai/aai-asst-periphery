@@ -5,8 +5,6 @@ import backOffSecond from "../../utils/backOffSecond";
 import {functionHandlerMap} from "../../tools/telegram";
 import {SQSRecord} from "aws-lambda";
 import openai from "../../utils/openai";
-import ddbDocClient from "../../utils/ddbDocClient";
-import {PutCommand} from "@aws-sdk/lib-dynamodb";
 
 const Threads_runs_retrieve = async (record: SQSRecord) => {
   const {body, receiptHandle, messageId} = record;
